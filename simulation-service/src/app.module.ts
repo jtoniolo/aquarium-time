@@ -9,7 +9,7 @@ import { ConfigModule } from '@nestjs/config';
     ScheduleModule.forRoot(),
     SunModule,
     ConfigModule.forRoot({
-      ignoreEnvFile: process.env.NODE_ENV === 'production',
+      ignoreEnvFile: true,
     }),
   ],
 
