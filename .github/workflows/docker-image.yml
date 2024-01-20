@@ -33,4 +33,6 @@ jobs:
                   context: ./simulation-service
                   file: ./simulation-service/Dockerfile
                   push: true
-                  tags: jtoniolo/aquarium-time:${{ steps.date.outputs.date }}
+                  tags: |
+                      jtoniolo/aquarium-time:${{ steps.date.outputs.date }}-${{ github.run_number }}
+                      jtoniolo/aquarium-time:latest
