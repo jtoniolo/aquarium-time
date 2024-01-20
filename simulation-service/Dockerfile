@@ -10,8 +10,9 @@ RUN yarn build
 FROM node:20-alpine AS serve
 WORKDIR /usr/src/app
 COPY --from=build /usr/src/app/dist ./dist
-COPY package.json yarn.lock ./
-RUN yarn install --production --frozen-lockfile
+COPY --from=build /usr/src/app/node_modules ./node_modules
+#COPY package.json yarn.lock ./
+#RUN yarn install --production --frozen-lockfile
 
 EXPOSE 3000
 CMD ["node", "dist/main"]
