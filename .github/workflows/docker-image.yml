@@ -30,7 +30,7 @@ jobs:
             - name: Build and push
               uses: docker/build-push-action@v2
               with:
-                  context: .
-                  file: ./simulation-service/Dockerfile
+                  context: ./simulation-service
+                  file: ./Dockerfile
                   push: true
                   tags: jtoniolo/aquarium-time:${{ steps.date.outputs.date }}
