@@ -32,4 +32,4 @@ jobs:
         context: .
         file: ./Dockerfile
         push: true
-        tags: jtoniolo/aquarium-time:${{ format('{0:yyyyMMdd}', github.event.pushed_at) }}
+        tags: jtoniolo/aquarium-time:${{ format('{0:yyyyMMdd}', github.event.workflow_run.created_at) }}
