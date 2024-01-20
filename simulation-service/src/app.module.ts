@@ -5,7 +5,13 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), SunModule, ConfigModule.forRoot()],
+  imports: [
+    ScheduleModule.forRoot(),
+    SunModule,
+    ConfigModule.forRoot({
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
+    }),
+  ],
 
   providers: [AppService],
 })
