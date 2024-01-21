@@ -1,0 +1,22 @@
+alias: aquarium sun
+description: ""
+trigger:
+  - platform: mqtt
+    topic: aquarium/virtual-environment/sun
+    alias: msg
+    enabled: true
+condition: []
+action:
+  - service: light.turn_on
+    metadata: {}
+    data:
+      brightness_pct: "{{ trigger.payload_json.brightness }}"
+      rgbw_color:
+        - "{{ trigger.payload_json.rgbw.red }}"
+        - "{{ trigger.payload_json.rgbw.green }}"
+        - "{{ trigger.payload_json.rgbw.blue }}"
+        - "{{ trigger.payload_json.rgbw.white }}"
+    target:
+      entity_id:
+        - light.controller_rgbw_5d5442
+mode: single

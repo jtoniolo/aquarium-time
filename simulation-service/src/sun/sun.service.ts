@@ -34,6 +34,7 @@ export class SunService {
         minute: 0,
         second: 0,
       },
+      highLightRatio: 1 / 3,
       sunriseOffset: 0,
       durationMultiplier: 1,
     });
@@ -43,8 +44,48 @@ export class SunService {
     console.log(simulatedSun);
   }
 
+  getDistributionData(): DistribuitonData[] {
+    const data: DistribuitonData[] = [];
+
+    const settings: SunConfig = {
+      sunRiseTime: {
+        hour: 6,
+        minute: 0,
+        second: 0,
+      },
+      sunDuration: {
+        hour: 16,
+        minute: 0,
+        second: 0,
+      },
+      highLightRatio: 1 / 3,
+      sunriseOffset: 0,
+      durationMultiplier: 1,
+    };
+
+    for (
+      let minute = settings.sunRiseTime.hour * 60;
+      minute < (settings.sunRiseTime.hour + settings.sunDuration.hour) * 60;
+      minute += 10
+    ) {
+      const time = new Date();
+      time.setHours(0, minute, 0, 0); // Set the time to the current minute of the day
+      const solarSimulation = this.getSolarSimulation(time, settings);
+
+      data.push({
+        time: time.toLocaleString(),
+        brightness: solarSimulation.brightness,
+        red: solarSimulation.rgbw.red,
+        green: solarSimulation.rgbw.green,
+        blue: solarSimulation.rgbw.blue,
+        white: solarSimulation.rgbw.white,
+      }); // Use toFixed to limit the number of decimal places
+    }
+    return data;
+  }
+
   // This method converts a UTC date to a specific timezone
-  convertUtcToTimezone(date: Date): Date {
+  private convertUtcToTimezone(date: Date): Date {
     const timezone = process.env.TZ ?? 'America/Toronto';
     const utcDate = new Date(date.toUTCString());
     return new Date(utcDate.toLocaleString('en-US', { timeZone: timezone }));
@@ -59,10 +100,7 @@ export class SunService {
    * @param time The time to simulate the sun's position.
    * @param settings The settings to use for the simulation.
    */
-  getSolarSimulation(time: Date, settings: SunConfig): SimulatedSun {
-    // Log the current date
-    this.logger.log(`Date: ${time.toISOString()}`);
-
+  private getSolarSimulation(time: Date, settings: SunConfig): SimulatedSun {
     // Create a new instance of SimulatedSun
     const simulatedSun = new SimulatedSun();
 
@@ -73,30 +111,29 @@ export class SunService {
     // Convert the duration of the sun to seconds
     const durationInSeconds = this.getTimeInSeconds(settings.sunDuration);
 
-    // Calculate the time since sunrise in seconds, minutes, and hours
-    const timeSinceSunrise = timeInSeconds - sunriseTimeInSeconds;
-    const timeSinceSunriseInMinutes = timeSinceSunrise / 60;
-    const timeSinceSunriseInHours = timeSinceSunriseInMinutes / 60;
+    // If the time is outside of the sunrise time and duration, turn off the simulated sun
+    simulatedSun.on =
+      timeInSeconds >= sunriseTimeInSeconds &&
+      timeInSeconds <= sunriseTimeInSeconds + durationInSeconds;
 
-    // Convert the duration of the sun to minutes and hours
-    const durationInMinutes = durationInSeconds / 60;
-    const durationInHours = durationInMinutes / 60;
+    // If the simulated sun is off, return the simulatedSun instance
+    if (!simulatedSun.on) return simulatedSun;
 
-    // Adjust the time since sunrise by the sunrise offset and duration multiplier
-    const timeSinceSunriseInHoursWithOffset =
-      timeSinceSunriseInHours - settings.sunriseOffset;
-    const timeSinceSunriseInHoursWithOffsetAndMultiplier =
-      timeSinceSunriseInHoursWithOffset * settings.durationMultiplier;
+    // Calculate the brightness factor based on the time since sunrise
+    const brightnessFactor = this.getBrightnessFactor(
+      sunriseTimeInSeconds,
+      durationInSeconds,
+      timeInSeconds,
+      settings.highLightRatio,
+    );
 
     // Calculate the brightness and RGBW values based on the time since sunrise
-    const brightness = this.getBrightness(
-      timeSinceSunriseInHoursWithOffsetAndMultiplier,
-      durationInHours,
-    );
+    const brightness = Math.round((brightnessFactor / 255) * 100);
     const rgbw = this.getRGBW(
-      timeSinceSunriseInHoursWithOffsetAndMultiplier,
-      durationInHours,
-      brightness / 100,
+      brightnessFactor,
+      timeInSeconds,
+      sunriseTimeInSeconds,
+      durationInSeconds,
     );
 
     // Assign the calculated brightness and RGBW values to the simulatedSun instance
@@ -104,7 +141,78 @@ export class SunService {
     simulatedSun.rgbw = rgbw;
 
     // Return the simulatedSun instance
+
     return simulatedSun;
+  }
+
+  private getBrightnessFactor(
+    startTime: number,
+    duration: number,
+    currentTime: number,
+    middleFactor: number = 1 / 3,
+  ): number {
+    const totalSeconds = duration;
+    const middleDuration = totalSeconds * middleFactor;
+    const otherDuration = (totalSeconds - middleDuration) / 2;
+
+    const firstPartEnd = startTime + otherDuration;
+    const secondPartEnd = firstPartEnd + middleDuration;
+
+    let x;
+    let brightness;
+
+    if (currentTime <= firstPartEnd) {
+      // First part of the day, use cubic function
+      x = (currentTime - startTime) / otherDuration;
+      brightness = Math.pow(x, 3) * (255 * middleFactor);
+    } else if (currentTime <= secondPartEnd) {
+      // Middle part of the day, use parabolic function
+      x = (2 * (currentTime - firstPartEnd)) / middleDuration - 1;
+      brightness =
+        (1 - Math.pow(x, 2)) * (255 - 255 * middleFactor) + 255 * middleFactor;
+    } else {
+      // Last part of the day, use mirror of cubic function
+      x = 1 - (currentTime - secondPartEnd) / otherDuration;
+      brightness = Math.pow(x, 3) * (255 * middleFactor);
+    }
+
+    const factor = Math.max(Math.min(Math.round(brightness), 255), 0);
+
+    return factor;
+  }
+
+  getRGBW(brightnessFactor, currentTime, startTime, duration) {
+    const rgbw = new RGBW();
+
+    const totalSeconds = duration * 3600;
+    const middleDuration = totalSeconds / 3; // middle third of the day
+    const otherDuration = (totalSeconds - middleDuration) / 2;
+
+    const firstPartEnd = startTime + otherDuration;
+    const secondPartEnd = firstPartEnd + middleDuration;
+
+    let red, green, blue;
+
+    if (currentTime <= firstPartEnd || currentTime > secondPartEnd) {
+      // Morning or evening, more red/orange
+      red = brightnessFactor;
+      green = (200 / 255) * brightnessFactor;
+      blue = (50 / 255) * brightnessFactor;
+    } else {
+      // Middle of the day, normal color
+      red = brightnessFactor;
+      green = brightnessFactor;
+      blue = brightnessFactor;
+    }
+
+    const white = brightnessFactor;
+
+    rgbw.red = Math.round(red);
+    rgbw.green = Math.round(green);
+    rgbw.blue = Math.round(blue);
+    rgbw.white = Math.round(white);
+
+    return rgbw;
   }
 
   /**
@@ -115,7 +223,7 @@ export class SunService {
    * @param durationInHours The duration of the sun in hours.
    * @param brightness The brightness of the sun.
    */
-  getRGBW(
+  getRGBW_old(
     timeSinceSunriseInHoursWithOffsetAndMultiplier: number,
     durationInHours: number,
     brightness: number,
@@ -150,14 +258,25 @@ export class SunService {
     timeSinceSunriseInHoursWithOffsetAndMultiplier: number,
     durationInHours: number,
   ) {
+    const peakBrightnessThreshold = 0.75; // new parameter to fine-tune the curve
+    const baseBrightness = 50;
     // Calculate the brightness using the sine function
     const brightness = Math.sin(
       (timeSinceSunriseInHoursWithOffsetAndMultiplier / durationInHours) *
         Math.PI,
     );
 
-    // Map the brightness from [-1, 1] to [0, 100]
-    const mappedBrightness = ((brightness + 1) / 2) * 100;
+    // Map the brightness from [-1, 1] to [0, 75]
+    let mappedBrightness = ((brightness + 1) / 2) * baseBrightness; // << -- This line also affects the curve
+
+    // Extend the range to [0, 100] only for the peak brightness values
+    if (brightness > peakBrightnessThreshold) {
+      mappedBrightness =
+        ((brightness - peakBrightnessThreshold) /
+          (1 - peakBrightnessThreshold)) *
+          25 +
+        75;
+    }
 
     // Return the mapped brightness
     return mappedBrightness;
@@ -168,11 +287,21 @@ export class SunService {
    *
    * @param time The time to convert.
    */
-  getTimeInSeconds(time: Time): number {
+  private getTimeInSeconds(time: Time): number {
     // Convert the time to seconds
     return time.hour * 3600 + time.minute * 60 + time.second;
   }
 }
+
+export interface DistribuitonData {
+  time: string;
+  brightness: number;
+  red: number;
+  green: number;
+  blue: number;
+  white: number;
+}
+
 /***
      * Keeping this here for now. This is for the Home Assistant automation.
      *   rgbw_color:
