@@ -43,8 +43,44 @@ export class SunService {
     console.log(simulatedSun);
   }
 
+  getDistributionData() {
+    const data: DistribuitonData[] = [];
+    //data.push(['Hour', 'Brightness', 'Red', 'Green', 'Blue', 'White']); // Headers
+
+    const settings: SunConfig = {
+      sunRiseTime: {
+        hour: 6,
+        minute: 0,
+        second: 0,
+      },
+      sunDuration: {
+        hour: 12,
+        minute: 0,
+        second: 0,
+      },
+      sunriseOffset: 0,
+      durationMultiplier: 1,
+    };
+
+    for (let minute = 0; minute < 24 * 60; minute += 10) {
+      const time = new Date();
+      time.setHours(0, minute, 0, 0); // Set the time to the current minute of the day
+      const solarSimulation = this.getSolarSimulation(time, settings);
+      data.push({
+        time: time.toISOString(),
+        brightness: solarSimulation.brightness,
+        red: solarSimulation.rgbw.red,
+        green: solarSimulation.rgbw.green,
+        blue: solarSimulation.rgbw.blue,
+        white: solarSimulation.rgbw.white,
+      }); // Use toFixed to limit the number of decimal places
+    }
+
+    return data;
+  }
+
   // This method converts a UTC date to a specific timezone
-  convertUtcToTimezone(date: Date): Date {
+  private convertUtcToTimezone(date: Date): Date {
     const timezone = process.env.TZ ?? 'America/Toronto';
     const utcDate = new Date(date.toUTCString());
     return new Date(utcDate.toLocaleString('en-US', { timeZone: timezone }));
@@ -59,7 +95,7 @@ export class SunService {
    * @param time The time to simulate the sun's position.
    * @param settings The settings to use for the simulation.
    */
-  getSolarSimulation(time: Date, settings: SunConfig): SimulatedSun {
+  private getSolarSimulation(time: Date, settings: SunConfig): SimulatedSun {
     // Log the current date
     this.logger.log(`Date: ${time.toISOString()}`);
 
@@ -115,7 +151,7 @@ export class SunService {
    * @param durationInHours The duration of the sun in hours.
    * @param brightness The brightness of the sun.
    */
-  getRGBW(
+  private getRGBW(
     timeSinceSunriseInHoursWithOffsetAndMultiplier: number,
     durationInHours: number,
     brightness: number,
@@ -150,14 +186,25 @@ export class SunService {
     timeSinceSunriseInHoursWithOffsetAndMultiplier: number,
     durationInHours: number,
   ) {
+    const peakBrightnessThreshold = 0.75; // new parameter to fine-tune the curve
+    const baseBrightness = 50;
     // Calculate the brightness using the sine function
     const brightness = Math.sin(
       (timeSinceSunriseInHoursWithOffsetAndMultiplier / durationInHours) *
         Math.PI,
     );
 
-    // Map the brightness from [-1, 1] to [0, 100]
-    const mappedBrightness = ((brightness + 1) / 2) * 100;
+    // Map the brightness from [-1, 1] to [0, 75]
+    let mappedBrightness = ((brightness + 1) / 2) * baseBrightness; // << -- This line also affects the curve
+
+    // Extend the range to [0, 100] only for the peak brightness values
+    if (brightness > peakBrightnessThreshold) {
+      mappedBrightness =
+        ((brightness - peakBrightnessThreshold) /
+          (1 - peakBrightnessThreshold)) *
+          25 +
+        75;
+    }
 
     // Return the mapped brightness
     return mappedBrightness;
@@ -168,11 +215,21 @@ export class SunService {
    *
    * @param time The time to convert.
    */
-  getTimeInSeconds(time: Time): number {
+  private getTimeInSeconds(time: Time): number {
     // Convert the time to seconds
     return time.hour * 3600 + time.minute * 60 + time.second;
   }
 }
+
+export interface DistribuitonData {
+  time: string;
+  brightness: number;
+  red: number;
+  green: number;
+  blue: number;
+  white: number;
+}
+
 /***
      * Keeping this here for now. This is for the Home Assistant automation.
      *   rgbw_color:
