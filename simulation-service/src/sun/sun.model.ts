@@ -1,5 +1,16 @@
 // This class represents a simulated sun with properties for brightness and RGBW color values at a specific moment in time.
 export class SimulatedSun {
+  constructor() {
+    this.brightness = 0;
+    this.rgbw = {
+      red: 0,
+      green: 0,
+      blue: 0,
+      white: 0,
+    };
+  }
+
+  on: boolean; // Whether the simulated sun is on or off
   brightness: number; // The brightness of the simulated sun, a value between 0 and 100
   rgbw: RGBW; // The RGBW color values of the simulated sun
 }
@@ -16,6 +27,7 @@ export class RGBW {
 export class SunConfig {
   sunRiseTime?: Time; // The time of sunrise
   sunDuration?: Time; // The duration of the sun
+  highLightRatio?: number = 1 / 3; // The ratio which determines the lenght of midday, the brightest part of the day. Should be 0 < highLightRatio <= 1
   //location?: Location; // The location for the sun simulation
   sunriseOffset?: number; // The offset for the sunrise time
   durationMultiplier?: number; // The multiplier for the duration of the sun

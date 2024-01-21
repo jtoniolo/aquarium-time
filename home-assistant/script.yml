@@ -1,0 +1,84 @@
+alias: aquarium-light-controller
+fields:
+  daytime:
+    description: Turn on the aquarium light
+    example: true
+    selector:
+      boolean: {}
+    required: true
+  brightness:
+    description: Brightness of the aquarium light
+    example: 100
+    selector:
+      number:
+        min: 0
+        max: 100
+        step: 1
+  entities:
+    description: List of aquarium light entities
+    example: light.kitchen, light.living_room
+    selector:
+      entity:
+        domain: light
+        multiple: true
+    required: true
+    name: entities
+  red:
+    description: RGBW values of the aquarium light
+    example: 255
+    selector:
+      number:
+        min: 0
+        max: 255
+        step: 1
+  green:
+    description: RGBW values of the aquarium light
+    example: 255
+    selector:
+      number:
+        min: 0
+        max: 255
+        step: 1
+  blue:
+    description: RGBW values of the aquarium light
+    example: 255
+    selector:
+      number:
+        min: 0
+        max: 255
+        step: 1
+  white:
+    description: RGBW values of the aquarium light
+    example: 255
+    selector:
+      number:
+        min: 0
+        max: 255
+        step: 1
+sequence:
+  - choose:
+      - conditions:
+          - condition: not
+            conditions:
+              - condition: template
+                value_template: "{{ daytime }}"
+        sequence:
+          - service: light.turn_off
+            metadata: {}
+            data: {}
+            target:
+              entity_id: "{{ entities }}"
+    default:
+      - service: light.turn_on
+        metadata: {}
+        data:
+          rgbw_color:
+            - "{{ red }}"
+            - "{{ green }}"
+            - "{{ blue }}"
+            - "{{ white }}"
+          brightness_pct: "{{ brightness }}"
+        target:
+          entity_id: "{{ entities }}"
+mode: single
+icon: mdi:fishbowl-outline
