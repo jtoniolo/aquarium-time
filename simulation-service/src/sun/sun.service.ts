@@ -211,7 +211,7 @@ export class SunService {
 
     const white = brightnessFactor;
 
-    rgbw.red = Math.round(red);
+    rgbw.red = Math.round(red) || 1;
     rgbw.green = Math.round(green);
     rgbw.blue = Math.round(blue);
     rgbw.white = Math.round(white);
