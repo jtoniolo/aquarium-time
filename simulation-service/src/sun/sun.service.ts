@@ -88,6 +88,10 @@ export class SunService {
   private convertUtcToTimezone(date: Date): Date {
     const timezone = process.env.TZ ?? 'America/Toronto';
     const utcDate = new Date(date.toUTCString());
+
+    this.logger.log(
+      `Date Conversion: ${date}; UTC Date: ${utcDate}; Timezone: ${timezone}; Converted Date: ${utcDate.toLocaleString('en-US', { timeZone: timezone })}`,
+    );
     return new Date(utcDate.toLocaleString('en-US', { timeZone: timezone }));
   }
 
@@ -128,7 +132,7 @@ export class SunService {
     );
 
     // Calculate the brightness and RGBW values based on the time since sunrise
-    const brightness = Math.round((brightnessFactor / 255) * 100);
+    const brightness = Math.round((brightnessFactor / 255) * 100) || 1; // brightness needs to be at least 1 for the lights to come on
     const rgbw = this.getRGBW(
       brightnessFactor,
       timeInSeconds,
