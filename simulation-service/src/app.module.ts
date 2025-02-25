@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LightsModule } from './lights/lights.module';
+import { AquariumsModule } from './aquariums/aquariums.module';
 import * as fs from 'fs';
 
 @Module({
@@ -18,6 +19,7 @@ import * as fs from 'fs';
     }),
     SunModule,
     LightsModule,
+    AquariumsModule,
     ConfigModule.forRoot({
       ignoreEnvFile: !fs.existsSync('.env'),
     }),

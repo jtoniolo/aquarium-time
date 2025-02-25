@@ -13,6 +13,11 @@ export class LightsService {
     private readonly haService: HomeAssistantService,
   ) {}
 
+  private formatDate(dateStr: string): Date {
+    // Handle ISO 8601 dates with timezone offset
+    return new Date(dateStr);
+  }
+
   async findAll(): Promise<Light[]> {
     const haLights = await this.haService.getAllLights();
     const savedLights = await this.lightRepository.find();
@@ -26,8 +31,8 @@ export class LightsService {
         await this.create({
           entity_id: light.entity_id,
           entity_data: light,
-          last_updated: new Date(light.last_updated),
-        });
+          last_updated: this.formatDate(light.last_updated),
+        } as Light);
       }
     }
 
@@ -40,7 +45,7 @@ export class LightsService {
       const haLight = await this.haService.getLightState(entity_id);
       await this.update(entity_id, {
         entity_data: haLight,
-        last_updated: new Date(haLight.last_updated),
+        last_updated: this.formatDate(haLight.last_updated),
       });
       return this.lightRepository.findOneBy({ entity_id });
     }
@@ -50,7 +55,7 @@ export class LightsService {
   async create(light: Light): Promise<Light> {
     const haLight = await this.haService.getLightState(light.entity_id);
     light.entity_data = haLight;
-    light.last_updated = new Date(haLight.last_updated);
+    light.last_updated = this.formatDate(haLight.last_updated);
     return this.lightRepository.save(light);
   }
 
@@ -71,7 +76,7 @@ export class LightsService {
     );
     return this.update(entity_id, {
       entity_data: haLight,
-      last_updated: new Date(haLight.last_updated),
+      last_updated: this.formatDate(haLight.last_updated),
     });
   }
 

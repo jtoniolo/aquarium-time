@@ -1,5 +1,6 @@
-import { Entity, Column, PrimaryColumn } from 'typeorm';
+import { Entity, Column, PrimaryColumn, ManyToOne } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
+import { Aquarium } from '../aquariums/aquarium.entity';
 
 @Entity()
 export class Light {
@@ -28,4 +29,14 @@ export class Light {
   })
   @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   last_updated: Date;
+
+  @ApiProperty({
+    description: 'The aquarium this light belongs to',
+    nullable: true,
+  })
+  @ManyToOne(() => Aquarium, (aquarium) => aquarium.lights, { nullable: true })
+  aquarium: Aquarium;
+
+  @Column({ nullable: true })
+  aquariumId: string;
 }
