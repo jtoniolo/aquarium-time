@@ -68,6 +68,7 @@ const lightsSlice = createSlice({
         state.items = action.payload;
       })
       .addCase(assignLight.fulfilled, (state, action) => {
+        // Add/update the light in items array
         const index = state.items.findIndex(
           (light) => light.entity_id === action.payload.entity_id
         );
@@ -76,6 +77,11 @@ const lightsSlice = createSlice({
         } else {
           state.items.push(action.payload);
         }
+
+        // Remove the light from discoveredLights
+        state.discoveredLights = state.discoveredLights.filter(
+          (light) => light.entity_id !== action.payload.entity_id
+        );
       });
   },
 });
