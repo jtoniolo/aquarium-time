@@ -1,18 +1,27 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { Box, Button, Typography, Card, CardContent, Grid } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import { fetchAquariums } from './store/aquariumsSlice';
-import type { RootState, AppDispatch } from './store/store';
-import type { Aquarium } from './types';
-import AddAquariumDialog from './components/AddAquariumDialog';
-import TimeOfDay from './components/TimeOfDay';
+import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  Box,
+  Button,
+  Typography,
+  Card,
+  CardContent,
+  Grid,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import { fetchAquariums } from "./store/aquariumsSlice";
+import type { RootState, AppDispatch } from "./store/store";
+import type { Aquarium } from "./types";
+import AddAquariumDialog from "./components/AddAquariumDialog";
+import TimeOfDay from "./components/TimeOfDay";
 
 export default function DashboardPage() {
   const dispatch = useDispatch<AppDispatch>();
-  const { items: aquariums, loading } = useSelector((state: RootState) => state.aquariums);
+  const { items: aquariums, loading } = useSelector(
+    (state: RootState) => state.aquariums
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -41,8 +50,8 @@ export default function DashboardPage() {
           Welcome to Aquarium Sun
         </Typography>
         <Typography variant="body1" color="text.secondary" textAlign="center">
-          Get started by adding your first aquarium.
-          Once you have an aquarium set up, you can discover and assign lights to it.
+          Get started by adding your first aquarium. Once you have an aquarium
+          set up, you can discover and assign lights to it.
         </Typography>
         <Button
           variant="contained"
@@ -52,7 +61,10 @@ export default function DashboardPage() {
         >
           Add Aquarium
         </Button>
-        <AddAquariumDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
+        <AddAquariumDialog
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+        />
       </Box>
     );
   }
@@ -60,7 +72,7 @@ export default function DashboardPage() {
   return (
     <Box>
       <TimeOfDay />
-      
+
       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="h5" gutterBottom>
           My Aquariums
@@ -101,26 +113,25 @@ export default function DashboardPage() {
         <Grid item xs={12} md={6} lg={4}>
           <Card
             sx={{
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              bgcolor: 'action.hover',
-              cursor: 'pointer',
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              bgcolor: "action.hover",
+              cursor: "pointer",
             }}
             onClick={() => setDialogOpen(true)}
           >
-            <Button
-              variant="outlined"
-              startIcon={<AddIcon />}
-              sx={{ p: 2 }}
-            >
+            <Button variant="outlined" startIcon={<AddIcon />} sx={{ p: 2 }}>
               Add Another Aquarium
             </Button>
           </Card>
         </Grid>
       </Grid>
-      <AddAquariumDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
+      <AddAquariumDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+      />
     </Box>
   );
 }

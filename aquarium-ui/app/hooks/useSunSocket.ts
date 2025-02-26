@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import io from 'socket.io-client';
-import { API_BASE_URL } from '../config';
+import { useState, useEffect } from "react";
+import io from "socket.io-client";
+import { API_BASE_URL } from "../config";
 
 // Remove the /api prefix for WebSocket connections
-const SOCKET_URL = API_BASE_URL.replace('/api', '');
+const SOCKET_URL = API_BASE_URL.replace("/api", "");
 
 export interface SunUpdate {
   on: boolean;
@@ -14,7 +14,7 @@ export interface SunUpdate {
     blue: number;
     white: number;
   };
-  timeOfDay: 'sunrise' | 'day' | 'sunset' | 'night';
+  timeOfDay: "sunrise" | "day" | "sunset" | "night";
   cyclePercentage: number;
 }
 
@@ -24,16 +24,16 @@ export function useSunSocket() {
   useEffect(() => {
     const socket = io(SOCKET_URL);
 
-    socket.on('connect', () => {
-      console.log('Connected to sun socket');
+    socket.on("connect", () => {
+      console.log("Connected to sun socket");
     });
 
-    socket.on('sunUpdate', (data: SunUpdate) => {
+    socket.on("sunUpdate", (data: SunUpdate) => {
       setSunData(data);
     });
 
-    socket.on('disconnect', () => {
-      console.log('Disconnected from sun socket');
+    socket.on("disconnect", () => {
+      console.log("Disconnected from sun socket");
     });
 
     return () => {

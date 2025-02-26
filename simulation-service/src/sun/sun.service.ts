@@ -59,7 +59,10 @@ export class SunService {
     this.latestEnhancedSimulation = enhanced;
 
     // Emit updates through both MQTT and WebSocket
-    this.mqtt.publish(process.env.MQTT_TOPIC, JSON.stringify(this.latestSimulation));
+    this.mqtt.publish(
+      process.env.MQTT_TOPIC,
+      JSON.stringify(this.latestSimulation),
+    );
     this.sunGateway.emitSunUpdate(this.latestEnhancedSimulation);
   }
 
@@ -156,7 +159,8 @@ export class SunService {
         // plus the time from sunset yesterday up to midnight
         const timeUntilSunrise = sunriseTimeInSeconds - timeInSeconds;
         const totalNightDuration = 24 * 3600 - durationInSeconds; // Total night duration
-        enhanced.cyclePercentage = ((totalNightDuration - timeUntilSunrise) / totalNightDuration) * 100;
+        enhanced.cyclePercentage =
+          ((totalNightDuration - timeUntilSunrise) / totalNightDuration) * 100;
       } else {
         // After sunset - calculate progress through the night
         const timeFromSunset = timeInSeconds - sunsetTimeInSeconds;
@@ -192,10 +196,16 @@ export class SunService {
     if (timeInSeconds <= sunriseEnd) {
       enhanced.timeOfDay = 'sunrise';
       // During sunrise transition - percentage through the 1-hour transition
-      enhanced.cyclePercentage = Math.min(((timeInSeconds - sunriseTimeInSeconds) / TRANSITION_DURATION) * 100, 100);
+      enhanced.cyclePercentage = Math.min(
+        ((timeInSeconds - sunriseTimeInSeconds) / TRANSITION_DURATION) * 100,
+        100,
+      );
     } else if (timeInSeconds >= sunsetStart) {
       enhanced.timeOfDay = 'sunset';
-      enhanced.cyclePercentage = Math.min(((timeInSeconds - sunsetStart) / TRANSITION_DURATION) * 100, 100);
+      enhanced.cyclePercentage = Math.min(
+        ((timeInSeconds - sunsetStart) / TRANSITION_DURATION) * 100,
+        100,
+      );
     } else {
       enhanced.timeOfDay = 'day';
       enhanced.cyclePercentage =
