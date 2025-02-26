@@ -7,6 +7,13 @@ async function bootstrap() {
     logger: console,
   });
 
+  // Enable CORS
+  app.enableCors({
+    origin: true, // Allow all origins in development
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
+
   // Swagger documentation setup
   const config = new DocumentBuilder()
     .setTitle('API')

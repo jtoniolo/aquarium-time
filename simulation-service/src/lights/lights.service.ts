@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Light } from './light.entity';
@@ -60,7 +60,10 @@ export class LightsService {
   }
 
   async update(entity_id: string, light: Partial<Light>): Promise<Light> {
-    await this.lightRepository.update(entity_id, light);
+    const result = await this.lightRepository.update(entity_id, light);
+    if (!result.affected) {
+      throw new NotFoundException();
+    }
     return this.findOne(entity_id);
   }
 
@@ -85,6 +88,15 @@ export class LightsService {
   }
 
   async discoverLights(): Promise<HALightState[]> {
-    return this.haService.getAllLights();
+    const haLights = await this.haService.getAllLights();
+    const existingLights = await this.lightRepository.find();
+
+    // Filter out lights that are already in our system
+    return haLights.filter(
+      (haLight) =>
+        !existingLights.some(
+          (existing) => existing.entity_id == haLight.entity_id,
+        ),
+    );
   }
 }
