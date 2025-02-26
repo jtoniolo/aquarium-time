@@ -8,6 +8,7 @@ import { fetchAquariums } from './store/aquariumsSlice';
 import type { RootState, AppDispatch } from './store/store';
 import type { Aquarium } from './types';
 import AddAquariumDialog from './components/AddAquariumDialog';
+import TimeOfDay from './components/TimeOfDay';
 
 export default function DashboardPage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -57,7 +58,22 @@ export default function DashboardPage() {
   }
 
   return (
-    <>
+    <Box>
+      <TimeOfDay />
+      
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
+        <Typography variant="h5" gutterBottom>
+          My Aquariums
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setDialogOpen(true)}
+        >
+          Add Aquarium
+        </Button>
+      </Box>
+
       <Grid container spacing={3}>
         {aquariums.map((aquarium: Aquarium) => (
           <Grid item xs={12} md={6} lg={4} key={aquarium.id}>
@@ -105,6 +121,6 @@ export default function DashboardPage() {
         </Grid>
       </Grid>
       <AddAquariumDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
-    </>
+    </Box>
   );
 }
