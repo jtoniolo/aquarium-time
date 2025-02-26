@@ -17,7 +17,7 @@ const initialState: SunState = {
 
 export const fetchLatestSun = createAsyncThunk("sun/fetchLatest", async () => {
   const response = await axios.get<SunUpdate>(
-    `${API_BASE_URL}/suns/latest/enhanced`
+    `${API_BASE_URL}/suns/latest`
   );
   return response.data;
 });
