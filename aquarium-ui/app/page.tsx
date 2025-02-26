@@ -16,6 +16,7 @@ import type { RootState, AppDispatch } from "./store/store";
 import type { Aquarium } from "./types";
 import AddAquariumDialog from "./components/AddAquariumDialog";
 import TimeOfDay from "./components/TimeOfDay";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -23,6 +24,7 @@ export default function DashboardPage() {
     (state: RootState) => state.aquariums
   );
   const [dialogOpen, setDialogOpen] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     dispatch(fetchAquariums());
@@ -89,7 +91,10 @@ export default function DashboardPage() {
       <Grid container spacing={3}>
         {aquariums.map((aquarium: Aquarium) => (
           <Grid item xs={12} md={6} lg={4} key={aquarium.id}>
-            <Card>
+            <Card
+              sx={{ cursor: "pointer", "&:hover": { boxShadow: 6 } }}
+              onClick={() => router.push(`/aquariums/${aquarium.id}`)}
+            >
               <CardContent>
                 <Typography variant="h6" gutterBottom>
                   {aquarium.name}
