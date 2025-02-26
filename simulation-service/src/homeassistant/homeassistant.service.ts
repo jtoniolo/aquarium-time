@@ -28,7 +28,9 @@ export class HomeAssistantService {
     };
   }
 
-  private isLightEntity(entity: HAEntityState<any>): entity is HALightState {
+  private isLightEntity(
+    entity: HAEntityState<unknown>,
+  ): entity is HALightState {
     return entity.entity_id.startsWith('light.');
   }
 
@@ -68,7 +70,9 @@ export class HomeAssistantService {
     }
   }
 
-  async getEntityState<T = any>(entityId: string): Promise<HAEntityState<T>> {
+  async getEntityState<T = unknown>(
+    entityId: string,
+  ): Promise<HAEntityState<T>> {
     try {
       const { data } = await firstValueFrom(
         this.httpService.get<HAEntityState<T>>(`/states/${entityId}`, {
@@ -92,7 +96,7 @@ export class HomeAssistantService {
     return this.getEntityState<HALightAttributes>(entityId);
   }
 
-  async updateEntityState<T = any>(
+  async updateEntityState<T = unknown>(
     entityId: string,
     state: string,
     attributes?: T,

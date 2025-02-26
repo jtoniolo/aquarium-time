@@ -1,11 +1,11 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
-import type { Light } from "../types";
+import type { Light, DiscoveredLight } from "../types";
 import { API_BASE_URL } from "../config";
 
 interface LightsState {
   items: Light[];
-  discoveredLights: Light[];
+  discoveredLights: DiscoveredLight[];
   loading: boolean;
   error: string | null;
 }
@@ -18,7 +18,9 @@ const initialState: LightsState = {
 };
 
 export const discoverLights = createAsyncThunk("lights/discover", async () => {
-  const response = await axios.get<Light[]>(`${API_BASE_URL}/lights/discover`);
+  const response = await axios.get<DiscoveredLight[]>(
+    `${API_BASE_URL}/lights/discover`
+  );
   return response.data;
 });
 

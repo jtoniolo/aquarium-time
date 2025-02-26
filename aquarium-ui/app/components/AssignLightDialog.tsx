@@ -16,13 +16,13 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { assignLight } from "../store/lightsSlice";
 import type { RootState, AppDispatch } from "../store/store";
-import type { Light } from "../types";
+import type { DiscoveredLight } from "../types";
 import { useState } from "react";
 
 interface AssignLightDialogProps {
   open: boolean;
   onClose: () => void;
-  light: Light;
+  light: DiscoveredLight;
 }
 
 export default function AssignLightDialog({
@@ -52,7 +52,7 @@ export default function AssignLightDialog({
       <DialogContent>
         <Typography variant="subtitle1" gutterBottom>
           Select an aquarium to add &quot;
-          {light.entity_data?.attributes?.friendly_name || light.entity_id}
+          {light.attributes?.friendly_name || light.entity_id}
           &quot;
         </Typography>
         <List>

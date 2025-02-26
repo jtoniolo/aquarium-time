@@ -4,7 +4,7 @@ export interface HAContext {
   user_id: string | null;
 }
 
-export interface HAEntityState<T = any> {
+export interface HAEntityState<T = unknown> {
   entity_id: string;
   state: string;
   attributes: T;

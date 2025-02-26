@@ -22,7 +22,7 @@ export class Light {
     },
   })
   @Column('simple-json')
-  entity_data: any;
+  entity_data: unknown;
 
   @ApiProperty({
     description: 'Last time the entity was updated',

@@ -15,7 +15,7 @@ import {
 import { discoverLights } from "../store/lightsSlice";
 import { fetchAquariums } from "../store/aquariumsSlice";
 import type { RootState, AppDispatch } from "../store/store";
-import type { Light } from "../types";
+import type { DiscoveredLight } from "../types";
 import LightbulbIcon from "@mui/icons-material/Lightbulb";
 import AddIcon from "@mui/icons-material/Add";
 import AssignLightDialog from "../components/AssignLightDialog";
@@ -29,7 +29,9 @@ export default function DiscoverPage() {
   const { items: aquariums } = useSelector(
     (state: RootState) => state.aquariums
   );
-  const [selectedLight, setSelectedLight] = useState<Light | null>(null);
+  const [selectedLight, setSelectedLight] = useState<DiscoveredLight | null>(
+    null
+  );
 
   useEffect(() => {
     if (aquariums.length === 0) {
@@ -86,23 +88,20 @@ export default function DiscoverPage() {
           Discover Lights
         </Typography>
         <Grid container spacing={3}>
-          {discoveredLights.map((light: Light) => (
+          {discoveredLights.map((light: DiscoveredLight) => (
             <Grid item xs={12} md={6} lg={4} key={light.entity_id}>
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    {light.entity_data?.attributes?.friendly_name ||
-                      light.entity_id}
+                    {light.attributes?.friendly_name || light.entity_id}
                   </Typography>
                   <Typography color="text.secondary">
-                    {light.entity_data?.state || "Unknown"}
+                    {light.state || "Unknown"}
                   </Typography>
-                  {light.entity_data?.attributes?.supported_color_modes && (
+                  {light.attributes?.supported_color_modes && (
                     <Typography variant="body2" color="text.secondary">
                       Supports:{" "}
-                      {light.entity_data.attributes.supported_color_modes.join(
-                        ", "
-                      )}
+                      {light.attributes.supported_color_modes.join(", ")}
                     </Typography>
                   )}
                   <Button
@@ -112,7 +111,7 @@ export default function DiscoverPage() {
                     onClick={() => setSelectedLight(light)}
                     startIcon={<AddIcon />}
                   >
-                    Add to Aquarium
+                    Add
                   </Button>
                 </CardContent>
               </Card>
