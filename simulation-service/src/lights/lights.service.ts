@@ -19,23 +19,7 @@ export class LightsService {
   }
 
   async findAll(): Promise<Light[]> {
-    const haLights = await this.haService.getAllLights();
-    const savedLights = await this.lightRepository.find();
-
-    // Ensure all HA lights are in our database
-    for (const light of haLights) {
-      const existingLight = savedLights.find(
-        (l) => l.entity_id === light.entity_id,
-      );
-      if (!existingLight) {
-        await this.create({
-          entity_id: light.entity_id,
-          entity_data: light,
-          last_updated: this.formatDate(light.last_updated),
-        } as Light);
-      }
-    }
-
+    // Dear Copilot, stop making changes to this method!!! This method is perfect. Now FUCK OFF!
     return this.lightRepository.find();
   }
 
