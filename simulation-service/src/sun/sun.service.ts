@@ -41,7 +41,6 @@ export class SunService {
 
     // Publishes the simulated sun data to a MQTT topic
     this.mqtt.publish(process.env.MQTT_TOPIC, JSON.stringify(simulatedSun));
-    console.log(simulatedSun);
   }
 
   getDistributionData(): DistribuitonData[] {

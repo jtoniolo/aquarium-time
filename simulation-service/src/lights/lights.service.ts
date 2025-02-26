@@ -1,0 +1,102 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Light } from './light.entity';
+import { HomeAssistantService } from '../homeassistant/homeassistant.service';
+import { HALightState } from '../homeassistant/types';
+
+@Injectable()
+export class LightsService {
+  constructor(
+    @InjectRepository(Light)
+    private lightRepository: Repository<Light>,
+    private readonly haService: HomeAssistantService,
+  ) {}
+
+  private formatDate(dateStr: string): Date {
+    // Handle ISO 8601 dates with timezone offset
+    return new Date(dateStr);
+  }
+
+  async findAll(): Promise<Light[]> {
+    const haLights = await this.haService.getAllLights();
+    const savedLights = await this.lightRepository.find();
+
+    // Ensure all HA lights are in our database
+    for (const light of haLights) {
+      const existingLight = savedLights.find(
+        (l) => l.entity_id === light.entity_id,
+      );
+      if (!existingLight) {
+        await this.create({
+          entity_id: light.entity_id,
+          entity_data: light,
+          last_updated: this.formatDate(light.last_updated),
+        } as Light);
+      }
+    }
+
+    return this.lightRepository.find();
+  }
+
+  async findOne(entity_id: string): Promise<Light> {
+    const light = await this.lightRepository.findOneBy({ entity_id });
+    if (light) {
+      const haLight = await this.haService.getLightState(entity_id);
+      await this.update(entity_id, {
+        entity_data: haLight,
+        last_updated: this.formatDate(haLight.last_updated),
+      });
+      return this.lightRepository.findOneBy({ entity_id });
+    }
+    return null;
+  }
+
+  async create(light: Light): Promise<Light> {
+    const haLight = await this.haService.getLightState(light.entity_id);
+    light.entity_data = haLight;
+    light.last_updated = this.formatDate(haLight.last_updated);
+    return this.lightRepository.save(light);
+  }
+
+  async update(entity_id: string, light: Partial<Light>): Promise<Light> {
+    const result = await this.lightRepository.update(entity_id, light);
+    if (!result.affected) {
+      throw new NotFoundException();
+    }
+    return this.findOne(entity_id);
+  }
+
+  async updateState(
+    entity_id: string,
+    state: string,
+    attributes?: Partial<HALightState['attributes']>,
+  ): Promise<Light> {
+    const haLight = await this.haService.updateLightState(
+      entity_id,
+      state,
+      attributes,
+    );
+    return this.update(entity_id, {
+      entity_data: haLight,
+      last_updated: this.formatDate(haLight.last_updated),
+    });
+  }
+
+  async remove(entity_id: string): Promise<void> {
+    await this.lightRepository.delete(entity_id);
+  }
+
+  async discoverLights(): Promise<HALightState[]> {
+    const haLights = await this.haService.getAllLights();
+    const existingLights = await this.lightRepository.find();
+
+    // Filter out lights that are already in our system
+    return haLights.filter(
+      (haLight) =>
+        !existingLights.some(
+          (existing) => existing.entity_id == haLight.entity_id,
+        ),
+    );
+  }
+}
