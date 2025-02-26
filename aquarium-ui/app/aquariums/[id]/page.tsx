@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import {
   Box,
@@ -34,6 +34,10 @@ import {
 } from "../../store/aquariumsSlice";
 import { removeLight } from "../../store/lightsSlice";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
+
+interface PageParams {
+  id: string;
+}
 
 interface EditableFieldProps {
   value: string;
@@ -111,6 +115,7 @@ export default function AquariumDetailPage({
 }: {
   params: { id: string };
 }) {
+  const { id } = use(params);
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -123,7 +128,7 @@ export default function AquariumDetailPage({
   const [dimensions, setDimensions] = useState("");
 
   const aquarium = useSelector((state: RootState) =>
-    state.aquariums.items.find((a) => a.id === params.id)
+    state.aquariums.items.find((a) => a.id === id)
   );
 
   // Initialize local state when aquarium data loads

@@ -1,6 +1,9 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import io from "socket.io-client";
 import { API_BASE_URL } from "../config";
+import { updateFromSocket } from "../store/sunSlice";
+import type { AppDispatch, RootState } from "../store/store";
 
 // Remove the /api prefix for WebSocket connections
 const SOCKET_URL = API_BASE_URL.replace("/api", "");
@@ -19,7 +22,8 @@ export interface SunUpdate {
 }
 
 export function useSunSocket() {
-  const [sunData, setSunData] = useState<SunUpdate | null>(null);
+  const dispatch = useDispatch<AppDispatch>();
+  const sunData = useSelector((state: RootState) => state.sun.current);
 
   useEffect(() => {
     const socket = io(SOCKET_URL);
@@ -29,7 +33,7 @@ export function useSunSocket() {
     });
 
     socket.on("sunUpdate", (data: SunUpdate) => {
-      setSunData(data);
+      dispatch(updateFromSocket(data));
     });
 
     socket.on("disconnect", () => {
@@ -39,7 +43,7 @@ export function useSunSocket() {
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [dispatch]);
 
   return sunData;
 }

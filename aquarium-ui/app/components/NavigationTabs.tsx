@@ -10,13 +10,16 @@ export default function NavigationTabs() {
   const router = useRouter();
   const { items: aquariums } = useSelector((state: RootState) => state.aquariums);
 
+  // Map any route under /aquariums to the dashboard tab
+  const currentTab = pathname.startsWith('/aquariums') ? '/' : pathname;
+
   const handleChange = (_: React.SyntheticEvent, newValue: string) => {
     router.push(newValue);
   };
 
   return (
     <Tabs
-      value={pathname}
+      value={currentTab}
       onChange={handleChange}
       textColor="inherit"
       indicatorColor="secondary"
