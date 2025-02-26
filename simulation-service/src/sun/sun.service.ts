@@ -1,16 +1,28 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { RGBW, SimulatedSun, SunConfig, Time } from './sun.model';
+import {
+  RGBW,
+  SimulatedSun,
+  EnhancedSimulatedSun,
+  SunConfig,
+  Time,
+} from './sun.model';
 import { MqttService } from 'src/mqtt/mqtt.service';
+import { SunGateway } from 'src/sun/sun.gateway';
 
 // This is a service class for handling sun related operations
 @Injectable()
 export class SunService {
   // Logger instance for logging
   private readonly logger = new Logger(SunService.name);
+  private latestSimulation: SimulatedSun | null = null;
+  private latestEnhancedSimulation: EnhancedSimulatedSun | null = null;
 
-  // MqttService is injected via constructor
-  constructor(private mqtt: MqttService) {}
+  // MqttService and SunGateway are injected via constructor
+  constructor(
+    private mqtt: MqttService,
+    private readonly sunGateway: SunGateway,
+  ) {}
 
   // This method is scheduled to run every minute
   @Cron(CronExpression.EVERY_MINUTE)
@@ -22,8 +34,7 @@ export class SunService {
     // Converts the current date to a specific timezone
     const date = this.convertUtcToTimezone(new Date());
 
-    // Simulates the sun's brightness and color at a given location and time
-    const simulatedSun = this.getSolarSimulation(date, {
+    const settings = {
       sunRiseTime: {
         hour: 6,
         minute: 0,
@@ -37,10 +48,27 @@ export class SunService {
       highLightRatio: 1 / 3,
       sunriseOffset: 0,
       durationMultiplier: 1,
-    });
+    };
 
-    // Publishes the simulated sun data to a MQTT topic
-    this.mqtt.publish(process.env.MQTT_TOPIC, JSON.stringify(simulatedSun));
+    // Simulates the sun's brightness and color at a given location and time
+    const simulatedSun = this.getSolarSimulation(date, settings);
+    const enhanced = this.calculateSunSimulation(date, settings);
+
+    // Cache the latest simulation (both basic and enhanced)
+    this.latestSimulation = simulatedSun;
+    this.latestEnhancedSimulation = enhanced;
+
+    // Emit updates through both MQTT and WebSocket
+    this.mqtt.publish(process.env.MQTT_TOPIC, JSON.stringify(this.latestSimulation));
+    this.sunGateway.emitSunUpdate(this.latestEnhancedSimulation);
+  }
+
+  getLatestSimulation(): SimulatedSun | null {
+    return this.latestSimulation;
+  }
+
+  getLatestEnhancedSimulation(): EnhancedSimulatedSun | null {
+    return this.latestEnhancedSimulation;
   }
 
   getDistributionData(): DistribuitonData[] {
@@ -95,32 +123,48 @@ export class SunService {
   }
 
   /**
-   * This method simulates the sun's brightness and color at a given location and time.
-   * It's not meant to be an accurate simulation, but rather a close enough to use for Aquarium lighting.
-   * Brightness is a value between 0 and 100, in percent. 0 is twilight, 100 is full sun.
-   * RGBW values are between 0 and 255. W = 1 to 5 is twilight, W = 255 is full sun.
-   *
-   * @param time The time to simulate the sun's position.
-   * @param settings The settings to use for the simulation.
+   * Core logic for sun simulation calculation that returns a complete EnhancedSimulatedSun
    */
-  private getSolarSimulation(time: Date, settings: SunConfig): SimulatedSun {
-    // Create a new instance of SimulatedSun
-    const simulatedSun = new SimulatedSun();
-
-    // Convert the current time and sunrise time to seconds
+  private calculateSunSimulation(
+    time: Date,
+    settings: SunConfig,
+  ): EnhancedSimulatedSun {
     const timeInSeconds = this.getTimeInSeconds(Time.fromDate(time));
     const sunriseTimeInSeconds = this.getTimeInSeconds(settings.sunRiseTime);
-
-    // Convert the duration of the sun to seconds
     const durationInSeconds = this.getTimeInSeconds(settings.sunDuration);
 
+    const enhanced = new EnhancedSimulatedSun();
+
     // If the time is outside of the sunrise time and duration, turn off the simulated sun
-    simulatedSun.on =
+    enhanced.on =
       timeInSeconds >= sunriseTimeInSeconds &&
       timeInSeconds <= sunriseTimeInSeconds + durationInSeconds;
 
-    // If the simulated sun is off, return the simulatedSun instance
-    if (!simulatedSun.on) return simulatedSun;
+    // If the simulated sun is off, return early with defaults
+    if (!enhanced.on) {
+      enhanced.brightness = 0;
+      enhanced.rgbw = new RGBW();
+      enhanced.timeOfDay =
+        timeInSeconds < sunriseTimeInSeconds ? 'night' : 'night';
+
+      // Calculate night cycle percentage
+      const sunsetTimeInSeconds = sunriseTimeInSeconds + durationInSeconds;
+
+      if (timeInSeconds < sunriseTimeInSeconds) {
+        // Before sunrise - calculate how close we are to sunrise
+        // If current time is just after midnight, we need to consider time since midnight
+        // plus the time from sunset yesterday up to midnight
+        const timeUntilSunrise = sunriseTimeInSeconds - timeInSeconds;
+        const totalNightDuration = 24 * 3600 - durationInSeconds; // Total night duration
+        enhanced.cyclePercentage = ((totalNightDuration - timeUntilSunrise) / totalNightDuration) * 100;
+      } else {
+        // After sunset - calculate progress through the night
+        const timeFromSunset = timeInSeconds - sunsetTimeInSeconds;
+        const totalNightDuration = 24 * 3600 - durationInSeconds;
+        enhanced.cyclePercentage = (timeFromSunset / totalNightDuration) * 100;
+      }
+      return enhanced;
+    }
 
     // Calculate the brightness factor based on the time since sunrise
     const brightnessFactor = this.getBrightnessFactor(
@@ -131,19 +175,44 @@ export class SunService {
     );
 
     // Calculate the brightness and RGBW values based on the time since sunrise
-    const brightness = Math.round((brightnessFactor / 255) * 100) || 1; // brightness needs to be at least 1 for the lights to come on
-    const rgbw = this.getRGBW(
+    enhanced.brightness = Math.round((brightnessFactor / 255) * 100) || 1; // brightness needs to be at least 1 for the lights to come on
+    enhanced.rgbw = this.getRGBW(
       brightnessFactor,
       timeInSeconds,
       sunriseTimeInSeconds,
       durationInSeconds,
     );
 
-    // Assign the calculated brightness and RGBW values to the simulatedSun instance
-    simulatedSun.brightness = Math.round(brightness); // brightness needs to be an integer between 0 and 100.
-    simulatedSun.rgbw = rgbw;
+    // Calculate time of day and cycle percentage for daytime
+    const TRANSITION_DURATION = 3600; // 1 hour transition periods
+    const sunsetTimeInSeconds = sunriseTimeInSeconds + durationInSeconds;
+    const sunriseEnd = sunriseTimeInSeconds + TRANSITION_DURATION;
+    const sunsetStart = sunsetTimeInSeconds - TRANSITION_DURATION;
 
-    // Return the simulatedSun instance
+    if (timeInSeconds <= sunriseEnd) {
+      enhanced.timeOfDay = 'sunrise';
+      // During sunrise transition - percentage through the 1-hour transition
+      enhanced.cyclePercentage = Math.min(((timeInSeconds - sunriseTimeInSeconds) / TRANSITION_DURATION) * 100, 100);
+    } else if (timeInSeconds >= sunsetStart) {
+      enhanced.timeOfDay = 'sunset';
+      enhanced.cyclePercentage = Math.min(((timeInSeconds - sunsetStart) / TRANSITION_DURATION) * 100, 100);
+    } else {
+      enhanced.timeOfDay = 'day';
+      enhanced.cyclePercentage =
+        ((timeInSeconds - sunriseEnd) / (sunsetStart - sunriseEnd)) * 100;
+    }
+
+    return enhanced;
+  }
+
+  private getSolarSimulation(time: Date, settings: SunConfig): SimulatedSun {
+    const enhanced = this.calculateSunSimulation(time, settings);
+    const simulatedSun = new SimulatedSun();
+
+    // Only copy the base SimulatedSun properties
+    simulatedSun.on = enhanced.on;
+    simulatedSun.brightness = enhanced.brightness;
+    simulatedSun.rgbw = enhanced.rgbw;
 
     return simulatedSun;
   }
@@ -296,12 +365,25 @@ export class SunService {
   }
 }
 
-export interface DistribuitonData {
+import { ApiProperty } from '@nestjs/swagger';
+
+export class DistribuitonData {
+  @ApiProperty({ description: 'The time point of the distribution data' })
   time: string;
+
+  @ApiProperty({ description: 'The brightness value at this time point' })
   brightness: number;
+
+  @ApiProperty({ description: 'The red color value at this time point' })
   red: number;
+
+  @ApiProperty({ description: 'The green color value at this time point' })
   green: number;
+
+  @ApiProperty({ description: 'The blue color value at this time point' })
   blue: number;
+
+  @ApiProperty({ description: 'The white color value at this time point' })
   white: number;
 }
 
