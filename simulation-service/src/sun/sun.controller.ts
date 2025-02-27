@@ -1,7 +1,12 @@
 import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SunService } from './sun.service';
-import { SimulatedSun, EnhancedSimulatedSun, SunConfig, DistribuitonData } from './sun.model';
+import {
+  SimulatedSun,
+  EnhancedSimulatedSun,
+  SunConfig,
+  DistribuitonData,
+} from './sun.model';
 
 @Controller('suns')
 export class SunController {
@@ -58,7 +63,9 @@ export class SunController {
     description: 'The light distribution data throughout the day',
     type: [DistribuitonData],
   })
-  getDistributionData(@Body() body: { config?: SunConfig }): DistribuitonData[] {
+  getDistributionData(
+    @Body() body: { config?: SunConfig },
+  ): DistribuitonData[] {
     return this.sunService.getDistributionData(body.config);
   }
 

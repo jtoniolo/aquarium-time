@@ -85,6 +85,14 @@ export class SunConfig {
 
   @ApiProperty({ description: 'Whether to emulate cloud cover' })
   emulateCloudCover?: boolean;
+
+  @ApiProperty({
+    description: 'Maximum intensity for mid-day brightness (30-100%)',
+    minimum: 30,
+    maximum: 100,
+    default: 100,
+  })
+  maxIntensity?: number = 100;
 }
 
 // This class represents a geographical location with latitude, longitude, and altitude

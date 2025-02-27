@@ -20,15 +20,22 @@ export default function LightingConfigSection({
     highLightRatio: 1 / 3,
     durationMultiplier: 1,
     sunriseOffset: 0,
+    maxIntensity: 100,
   };
 
   const currentConfig = config || defaultConfig;
-  const [localRatio, setLocalRatio] = useState(currentConfig.highLightRatio || 0.33);
+  const [localRatio, setLocalRatio] = useState(
+    currentConfig.highLightRatio || 0.33
+  );
+  const [localIntensity, setLocalIntensity] = useState(
+    currentConfig.maxIntensity || 100
+  );
 
   // Update local state when props change
   useEffect(() => {
     setLocalRatio(currentConfig.highLightRatio || 0.33);
-  }, [currentConfig.highLightRatio]);
+    setLocalIntensity(currentConfig.maxIntensity || 100);
+  }, [currentConfig.highLightRatio, currentConfig.maxIntensity]);
 
   const handleTimeChange = (
     field: keyof SunConfig,
@@ -47,14 +54,23 @@ export default function LightingConfigSection({
 
   // Update local state while sliding
   const handleRatioChange = (_: Event, value: number | number[]) => {
-    if (typeof value === 'number') {
+    if (typeof value === "number") {
       setLocalRatio(value);
     }
   };
 
+  const handleIntensityChange = (_: Event, value: number | number[]) => {
+    if (typeof value === "number") {
+      setLocalIntensity(value);
+    }
+  };
+
   // Send update to parent when sliding ends
-  const handleRatioChangeCommitted = (_: React.SyntheticEvent | Event, value: number | number[]) => {
-    const finalValue = typeof value === 'number' ? value : 0.33;
+  const handleRatioChangeCommitted = (
+    _: React.SyntheticEvent | Event,
+    value: number | number[]
+  ) => {
+    const finalValue = typeof value === "number" ? value : 0.33;
     setLocalRatio(finalValue);
     onChange({
       ...currentConfig,
@@ -62,10 +78,30 @@ export default function LightingConfigSection({
     });
   };
 
+  const handleIntensityChangeCommitted = (
+    _: React.SyntheticEvent | Event,
+    value: number | number[]
+  ) => {
+    const finalValue = typeof value === "number" ? value : 100;
+    setLocalIntensity(finalValue);
+    onChange({
+      ...currentConfig,
+      maxIntensity: finalValue,
+    });
+  };
+
   // Calculate sunset time
-  const sunsetHour = ((currentConfig.sunRiseTime?.hour || 0) + (currentConfig.sunDuration?.hour || 0)) % 24;
-  const sunsetMinute = ((currentConfig.sunRiseTime?.minute || 0) + (currentConfig.sunDuration?.minute || 0)) % 60;
-  const sunsetTimeString = `${String(sunsetHour).padStart(2, '0')}:${String(sunsetMinute).padStart(2, '0')}`;
+  const sunsetHour =
+    ((currentConfig.sunRiseTime?.hour || 0) +
+      (currentConfig.sunDuration?.hour || 0)) %
+    24;
+  const sunsetMinute =
+    ((currentConfig.sunRiseTime?.minute || 0) +
+      (currentConfig.sunDuration?.minute || 0)) %
+    60;
+  const sunsetTimeString = `${String(sunsetHour).padStart(2, "0")}:${String(
+    sunsetMinute
+  ).padStart(2, "0")}`;
 
   return (
     <Stack spacing={2}>
@@ -78,7 +114,9 @@ export default function LightingConfigSection({
           type="number"
           size="small"
           value={currentConfig.sunRiseTime?.hour || 0}
-          onChange={(e) => handleTimeChange("sunRiseTime", "hour", e.target.value)}
+          onChange={(e) =>
+            handleTimeChange("sunRiseTime", "hour", e.target.value)
+          }
           disabled={disabled}
           inputProps={{ min: 0, max: 23 }}
         />
@@ -87,7 +125,9 @@ export default function LightingConfigSection({
           type="number"
           size="small"
           value={currentConfig.sunRiseTime?.minute || 0}
-          onChange={(e) => handleTimeChange("sunRiseTime", "minute", e.target.value)}
+          onChange={(e) =>
+            handleTimeChange("sunRiseTime", "minute", e.target.value)
+          }
           disabled={disabled}
           inputProps={{ min: 0, max: 59 }}
         />
@@ -100,7 +140,9 @@ export default function LightingConfigSection({
           type="number"
           size="small"
           value={currentConfig.sunDuration?.hour || 0}
-          onChange={(e) => handleTimeChange("sunDuration", "hour", e.target.value)}
+          onChange={(e) =>
+            handleTimeChange("sunDuration", "hour", e.target.value)
+          }
           disabled={disabled}
           inputProps={{ min: 0, max: 24 }}
         />
@@ -109,7 +151,9 @@ export default function LightingConfigSection({
           type="number"
           size="small"
           value={currentConfig.sunDuration?.minute || 0}
-          onChange={(e) => handleTimeChange("sunDuration", "minute", e.target.value)}
+          onChange={(e) =>
+            handleTimeChange("sunDuration", "minute", e.target.value)
+          }
           disabled={disabled}
           inputProps={{ min: 0, max: 59 }}
         />
@@ -126,16 +170,37 @@ export default function LightingConfigSection({
           onChangeCommitted={handleRatioChangeCommitted}
           step={0.01}
           marks={[
-            { value: 0, label: '0' },
-            { value: 0.25, label: '0.25' },
-            { value: 0.5, label: '0.5' },
-            { value: 0.75, label: '0.75' },
-            { value: 1, label: '1' }
+            { value: 0, label: "0" },
+            { value: 0.25, label: "0.25" },
+            { value: 0.5, label: "0.5" },
+            { value: 0.75, label: "0.75" },
+            { value: 1, label: "1" },
           ]}
           min={0}
           max={1}
           disabled={disabled}
           valueLabelFormat={(value) => value.toFixed(2)}
+          valueLabelDisplay="auto"
+        />
+      </Stack>
+
+      <Stack spacing={1}>
+        <Typography variant="subtitle2">Maximum Intensity (%)</Typography>
+        <Slider
+          value={localIntensity}
+          onChange={handleIntensityChange}
+          onChangeCommitted={handleIntensityChangeCommitted}
+          step={1}
+          marks={[
+            { value: 30, label: "30%" },
+            { value: 50, label: "50%" },
+            { value: 75, label: "75%" },
+            { value: 100, label: "100%" },
+          ]}
+          min={30}
+          max={100}
+          disabled={disabled}
+          valueLabelFormat={(value) => `${value}%`}
           valueLabelDisplay="auto"
         />
       </Stack>

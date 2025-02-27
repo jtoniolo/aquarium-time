@@ -96,10 +96,10 @@ export class SunService {
       const solarSimulation = this.getSolarSimulation(time, settings);
 
       data.push({
-        time: time.toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit', 
-          hour12: false 
+        time: time.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
         }),
         brightness: solarSimulation.brightness,
         red: solarSimulation.rgbw.red,
@@ -173,6 +173,7 @@ export class SunService {
       durationInSeconds,
       timeInSeconds,
       settings.highLightRatio,
+      settings.maxIntensity,
     );
 
     // Calculate the brightness and RGBW values based on the time since sunrise
@@ -229,6 +230,7 @@ export class SunService {
     duration: number,
     currentTime: number,
     middleFactor: number = 1 / 3,
+    maxIntensity: number = 100,
   ): number {
     const totalSeconds = duration;
     const middleDuration = totalSeconds * middleFactor;
@@ -239,24 +241,25 @@ export class SunService {
 
     let x;
     let brightness;
+    const intensityFactor = maxIntensity / 100;
 
     if (currentTime <= firstPartEnd) {
-      // First part of the day, use cubic function
+      // First part of the day, use cubic function (sunrise - not scaled)
       x = (currentTime - startTime) / otherDuration;
       brightness = Math.pow(x, 3) * (255 * middleFactor);
     } else if (currentTime <= secondPartEnd) {
-      // Middle part of the day, use parabolic function
+      // Middle part of the day, use parabolic function and apply intensity scaling
       x = (2 * (currentTime - firstPartEnd)) / middleDuration - 1;
-      brightness =
+      const baseMiddayBrightness =
         (1 - Math.pow(x, 2)) * (255 - 255 * middleFactor) + 255 * middleFactor;
+      brightness = baseMiddayBrightness * intensityFactor;
     } else {
-      // Last part of the day, use mirror of cubic function
+      // Last part of the day, use mirror of cubic function (sunset - not scaled)
       x = 1 - (currentTime - secondPartEnd) / otherDuration;
       brightness = Math.pow(x, 3) * (255 * middleFactor);
     }
 
     const factor = Math.max(Math.min(Math.round(brightness), 255), 0);
-
     return factor;
   }
 

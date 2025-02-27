@@ -37,7 +37,7 @@ interface LightDistributionGraphProps {
 export default function LightDistributionGraph({
   data,
 }: LightDistributionGraphProps) {
-  const options: ChartOptions<'line'> = {
+  const options: ChartOptions<"line"> = {
     responsive: true,
     plugins: {
       legend: {
@@ -58,7 +58,7 @@ export default function LightDistributionGraph({
         },
       },
       x: {
-        type: 'category',
+        type: "category",
         title: {
           display: true,
           text: "Time of Day",
@@ -66,16 +66,16 @@ export default function LightDistributionGraph({
         ticks: {
           callback(tickValue: number | string) {
             const timeEntry = data[Number(tickValue)];
-            if (!timeEntry) return '';
+            if (!timeEntry) return "";
             return timeEntry.time;
-          }
-        }
+          },
+        },
       },
     },
   };
 
   const chartData = {
-    labels: data.map(d => d.time),
+    labels: data.map((d) => d.time),
     datasets: [
       {
         label: "Brightness",

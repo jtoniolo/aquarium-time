@@ -52,7 +52,7 @@ export const fetchDistributionData = createAsyncThunk(
         },
       }
     );
-    
+
     if (!response.data) {
       throw new Error("Failed to fetch distribution data");
     }

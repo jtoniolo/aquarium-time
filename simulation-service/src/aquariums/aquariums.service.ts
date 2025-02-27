@@ -35,10 +35,13 @@ export class AquariumsService {
 
   async update(id: string, aquariumData: Partial<Aquarium>): Promise<Aquarium> {
     const aquarium = await this.findOne(id); // This loads the existing aquarium with relations
-    
+
     // Merge the new data with the existing entity
-    const updatedAquarium = this.aquariumRepository.merge(aquarium, aquariumData);
-    
+    const updatedAquarium = this.aquariumRepository.merge(
+      aquarium,
+      aquariumData,
+    );
+
     // Save the merged entity
     return this.aquariumRepository.save(updatedAquarium);
   }

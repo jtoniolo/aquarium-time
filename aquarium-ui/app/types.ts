@@ -76,6 +76,7 @@ export interface SunConfig {
   sunriseOffset?: number;
   durationMultiplier?: number;
   emulateCloudCover?: boolean;
+  maxIntensity?: number;
 }
 
 export interface Aquarium {
