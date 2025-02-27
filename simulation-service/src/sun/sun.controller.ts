@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Param } from '@nestjs/common';
-import { ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SunService } from './sun.service';
 import {
   SimulatedSun,
@@ -8,6 +8,7 @@ import {
   DistribuitonData,
 } from './sun.model';
 
+@ApiTags('sun')
 @Controller('suns')
 export class SunController {
   constructor(private readonly sunService: SunService) {}
@@ -81,5 +82,12 @@ export class SunController {
     @Body() config?: SunConfig,
   ): EnhancedSimulatedSun {
     return this.sunService.getAquariumSimulation(new Date(), config);
+  }
+
+  @ApiOperation({ summary: 'Trigger immediate light update for an aquarium' })
+  @Post(':id/update-lights')
+  async updateAquariumLights(@Param('id') id: string) {
+    await this.sunService.updateAquariumLights(id);
+    return { success: true };
   }
 }

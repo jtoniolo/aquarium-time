@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import {
   RGBW,
@@ -11,6 +11,9 @@ import {
 import { MqttService } from 'src/mqtt/mqtt.service';
 import { SunGateway } from 'src/sun/sun.gateway';
 import { AquariumsService } from '../aquariums/aquariums.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Aquarium } from '../aquariums/aquarium.entity';
 
 // This is a service class for handling sun related operations
 @Injectable()
@@ -41,6 +44,7 @@ export class SunService {
   constructor(
     private mqtt: MqttService,
     private readonly sunGateway: SunGateway,
+    @Inject(forwardRef(() => AquariumsService))
     private readonly aquariumsService: AquariumsService,
   ) {}
 
@@ -415,6 +419,44 @@ export class SunService {
   private getTimeInSeconds(time: Time): number {
     // Convert the time to seconds
     return time.hour * 3600 + time.minute * 60 + time.second;
+  }
+
+  private async sendLightStates(aquarium: Aquarium, date: Date = new Date()) {
+    const aquariumSimulation = this.getSolarSimulation(
+      date,
+      aquarium.lightingConfig || this.defaultSettings,
+    );
+
+    const lights = await aquarium.lights;
+    const lightStates = lights.map((light) => ({
+      entity_id: light.entity_id,
+      on: aquariumSimulation.on,
+      brightness: aquariumSimulation.brightness,
+      rgbw: {
+        red: aquariumSimulation.rgbw.red,
+        green: aquariumSimulation.rgbw.green,
+        blue: aquariumSimulation.rgbw.blue,
+        white: aquariumSimulation.rgbw.white,
+      },
+    }));
+
+    if (lightStates.length > 0) {
+      const message = {
+        lights: lightStates,
+      };
+      this.mqtt.publish(process.env.MQTT_LIGHT_TOPIC, JSON.stringify(message));
+    }
+  }
+
+  @InjectRepository(Aquarium)
+  private readonly aquariumRepository: Repository<Aquarium>;
+
+  async updateAquariumLights(aquariumId: string) {
+    const aquarium = await this.aquariumRepository.findOneBy({ id: aquariumId });
+    if (!aquarium) {
+      throw new NotFoundException(`Aquarium with ID ${aquariumId} not found`);
+    }
+    await this.sendLightStates(aquarium);
   }
 }
 
