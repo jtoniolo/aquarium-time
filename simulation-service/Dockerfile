@@ -8,7 +8,7 @@ RUN yarn build
 
 # ---- Serve ----
 FROM node:20-alpine AS serve
-WORKDIR /usr/src/app
+WORKDIR /app
 COPY --from=build /usr/src/app/dist ./dist
 COPY --from=build /usr/src/app/node_modules ./node_modules
 #COPY package.json yarn.lock ./
