@@ -242,21 +242,24 @@ export class SunService {
     let x;
     let brightness;
     const intensityFactor = maxIntensity / 100;
+    const baseMaxBrightness = 255;
+    const middayExtra = baseMaxBrightness - baseMaxBrightness * middleFactor;
+    const scaledMiddayExtra = middayExtra * intensityFactor;
 
     if (currentTime <= firstPartEnd) {
-      // First part of the day, use cubic function (sunrise - not scaled)
+      // First part of the day, use cubic function (sunrise)
       x = (currentTime - startTime) / otherDuration;
-      brightness = Math.pow(x, 3) * (255 * middleFactor);
+      brightness = Math.pow(x, 3) * (baseMaxBrightness * middleFactor);
     } else if (currentTime <= secondPartEnd) {
-      // Middle part of the day, use parabolic function and apply intensity scaling
+      // Middle part of the day, use parabolic function with reduced height based on maxIntensity
       x = (2 * (currentTime - firstPartEnd)) / middleDuration - 1;
-      const baseMiddayBrightness =
-        (1 - Math.pow(x, 2)) * (255 - 255 * middleFactor) + 255 * middleFactor;
-      brightness = baseMiddayBrightness * intensityFactor;
+      brightness =
+        (1 - Math.pow(x, 2)) * scaledMiddayExtra +
+        baseMaxBrightness * middleFactor;
     } else {
-      // Last part of the day, use mirror of cubic function (sunset - not scaled)
+      // Last part of the day, use mirror of cubic function (sunset)
       x = 1 - (currentTime - secondPartEnd) / otherDuration;
-      brightness = Math.pow(x, 3) * (255 * middleFactor);
+      brightness = Math.pow(x, 3) * (baseMaxBrightness * middleFactor);
     }
 
     const factor = Math.max(Math.min(Math.round(brightness), 255), 0);
