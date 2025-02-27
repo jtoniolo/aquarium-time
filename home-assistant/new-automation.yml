@@ -27,4 +27,4 @@ actions:
             - action: light.turn_off
               metadata: {}
               data: {}
-      for_each: { { trigger.payload_json.lights } }
+      for_each: "{{ trigger.payload_json.lights }}"
