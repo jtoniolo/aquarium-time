@@ -115,3 +115,23 @@ export class EnhancedSimulatedSun extends SimulatedSun {
   })
   cyclePercentage: number;
 }
+
+export class DistribuitonData {
+  @ApiProperty({ description: 'The time point of the distribution data' })
+  time: string;
+
+  @ApiProperty({ description: 'The brightness value at this time point' })
+  brightness: number;
+
+  @ApiProperty({ description: 'The red color value at this time point' })
+  red: number;
+
+  @ApiProperty({ description: 'The green color value at this time point' })
+  green: number;
+
+  @ApiProperty({ description: 'The blue color value at this time point' })
+  blue: number;
+
+  @ApiProperty({ description: 'The white color value at this time point' })
+  white: number;
+}

@@ -1,7 +1,7 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { DistribuitonData, SunService } from './sun.service';
-import { SimulatedSun, EnhancedSimulatedSun } from './sun.model';
+import { SunService } from './sun.service';
+import { SimulatedSun, EnhancedSimulatedSun, SunConfig, DistribuitonData } from './sun.model';
 
 @Controller('suns')
 export class SunController {
@@ -27,5 +27,52 @@ export class SunController {
   })
   getLatestEnhanced(): EnhancedSimulatedSun | null {
     return this.sunService.getLatestEnhancedSimulation();
+  }
+
+  @Get('current')
+  @ApiOperation({ summary: 'Get current sun simulation state' })
+  @ApiResponse({
+    status: 200,
+    description: 'The current sun simulation state',
+    type: SimulatedSun,
+  })
+  getCurrentSimulation(): SimulatedSun | null {
+    return this.sunService.getLatestSimulation();
+  }
+
+  @Get('enhanced')
+  @ApiOperation({ summary: 'Get enhanced sun simulation state' })
+  @ApiResponse({
+    status: 200,
+    description: 'The enhanced sun simulation state',
+    type: EnhancedSimulatedSun,
+  })
+  getEnhancedSimulation(): EnhancedSimulatedSun | null {
+    return this.sunService.getLatestEnhancedSimulation();
+  }
+
+  @Post('distribution')
+  @ApiOperation({ summary: 'Get light distribution data for given config' })
+  @ApiResponse({
+    status: 200,
+    description: 'The light distribution data throughout the day',
+    type: [DistribuitonData],
+  })
+  getDistributionData(@Body() body: { config?: SunConfig }): DistribuitonData[] {
+    return this.sunService.getDistributionData(body.config);
+  }
+
+  @Post('aquarium/:id')
+  @ApiOperation({ summary: 'Get current simulation for specific aquarium' })
+  @ApiResponse({
+    status: 200,
+    description: 'The sun simulation state for the aquarium',
+    type: EnhancedSimulatedSun,
+  })
+  getAquariumSimulation(
+    @Param('id') id: string,
+    @Body() config?: SunConfig,
+  ): EnhancedSimulatedSun {
+    return this.sunService.getAquariumSimulation(new Date(), config);
   }
 }

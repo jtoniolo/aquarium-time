@@ -8,12 +8,14 @@ import {
   Button,
   TextField,
   Stack,
+  Divider,
 } from "@mui/material";
 import { useDispatch } from "react-redux";
 import { updateAquarium } from "../store/aquariumsSlice";
 import type { AppDispatch } from "../store/store";
-import type { Aquarium } from "../types";
+import type { Aquarium, SunConfig } from "../types";
 import { useState } from "react";
+import LightingConfigSection from "./LightingConfigSection";
 
 interface EditAquariumDialogProps {
   open: boolean;
@@ -31,6 +33,9 @@ export default function EditAquariumDialog({
   const [description, setDescription] = useState(aquarium.description || "");
   const [gallons, setGallons] = useState(aquarium.gallons?.toString() || "");
   const [dimensions, setDimensions] = useState(aquarium.dimensions || "");
+  const [lightingConfig, setLightingConfig] = useState<SunConfig | undefined>(
+    aquarium.lightingConfig
+  );
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,6 +49,7 @@ export default function EditAquariumDialog({
           description: description || undefined,
           gallons: gallons ? parseInt(gallons, 10) : undefined,
           dimensions: dimensions || undefined,
+          lightingConfig: lightingConfig,
         })
       );
       onClose();
@@ -87,6 +93,14 @@ export default function EditAquariumDialog({
               placeholder="e.g., 48x24x24"
               fullWidth
             />
+
+            <Divider sx={{ my: 2 }} />
+
+            <LightingConfigSection
+              config={lightingConfig}
+              onChange={setLightingConfig}
+              disabled={saving}
+            />
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -100,3 +114,4 @@ export default function EditAquariumDialog({
       </form>
     </Dialog>
   );
+}

@@ -1,6 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Light } from '../lights/light.entity';
+import { SunConfig } from '../sun/sun.model';
 
 @Entity()
 export class Aquarium {
@@ -35,4 +36,13 @@ export class Aquarium {
 
   @OneToMany(() => Light, (light) => light.aquarium)
   lights: Light[];
+
+  @ApiProperty({
+    description:
+      'Custom lighting configuration for this aquarium. If not set, default sun simulation settings will be used.',
+    type: () => SunConfig,
+    required: false,
+  })
+  @Column('json', { nullable: true })
+  lightingConfig?: SunConfig;
 }

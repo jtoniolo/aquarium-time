@@ -1,7 +1,6 @@
 "use client";
-
-import { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 import {
   Box,
   Typography,
@@ -33,11 +32,29 @@ import {
   updateAquarium,
 } from "../../store/aquariumsSlice";
 import { removeLight } from "../../store/lightsSlice";
+import { fetchDistributionData } from "../../store/sunSlice";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
+import LightingConfigSection from "../../components/LightingConfigSection";
+import LightDistributionGraph from "../../components/LightDistributionGraph";
+import { SunConfig } from "../../../../simulation-service/src/sun/sun.model";
+import { createSelector } from "@reduxjs/toolkit";
 
-interface PageParams {
-  id: string;
-}
+// Create memoized selectors
+const selectAquarium = createSelector(
+  [
+    (state: RootState) => state.aquariums.items,
+    (_: RootState, id: string) => id,
+  ],
+  (aquariums, id) => aquariums.find((a) => a.id === id)
+);
+
+const selectDistributionData = createSelector(
+  [
+    (state: RootState) => state.sun.distributionData,
+    (_: RootState, id: string) => id,
+  ],
+  (distributionData, id) => distributionData[id] || []
+);
 
 interface EditableFieldProps {
   value: string;
@@ -110,26 +127,35 @@ function EditableField({
   );
 }
 
-export default function AquariumDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const { id } = use(params);
+export default function AquariumDetailPage() {
+  const params = useParams();
+  const id = params?.id as string;
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
-
-  // Local state for editable fields
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [gallons, setGallons] = useState("");
   const [dimensions, setDimensions] = useState("");
 
-  const aquarium = useSelector((state: RootState) =>
-    state.aquariums.items.find((a) => a.id === id)
+  // Use memoized selectors with the id from useParams
+  const aquarium = useSelector((state: RootState) => selectAquarium(state, id));
+  const distributionData = useSelector((state: RootState) =>
+    selectDistributionData(state, id)
   );
+
+  // Update useEffect to use id from useParams
+  useEffect(() => {
+    if (aquarium) {
+      dispatch(
+        fetchDistributionData({
+          aquariumId: id,
+          config: aquarium.lightingConfig,
+        })
+      );
+    }
+  }, [dispatch, aquarium, id]);
 
   // Initialize local state when aquarium data loads
   useEffect(() => {
@@ -144,6 +170,18 @@ export default function AquariumDetailPage({
   useEffect(() => {
     dispatch(fetchAquariums());
   }, [dispatch]);
+
+  // Add effect to fetch distribution data
+  useEffect(() => {
+    if (aquarium) {
+      dispatch(
+        fetchDistributionData({
+          aquariumId: aquarium.id,
+          config: aquarium.lightingConfig,
+        })
+      );
+    }
+  }, [aquarium, dispatch]);
 
   // Check if there are any unsaved changes
   const hasChanges =
@@ -163,9 +201,23 @@ export default function AquariumDetailPage({
         description: description || undefined,
         gallons: gallons ? parseInt(gallons, 10) : undefined,
         dimensions: dimensions || undefined,
+        lightingConfig: aquarium.lightingConfig,
       })
     );
     setEditingField(null);
+  };
+
+  const handleLightingConfigChange = (config: SunConfig) => {
+    if (!aquarium) return;
+    dispatch(
+      updateAquarium({
+        ...aquarium,
+        lightingConfig: config,
+      })
+    ).then(() => {
+      // Fetch new distribution data after config update
+      dispatch(fetchDistributionData({ aquariumId: aquarium.id, config }));
+    });
   };
 
   if (!aquarium) {
@@ -318,6 +370,23 @@ export default function AquariumDetailPage({
                 </Button>
               </Box>
             )}
+          </Paper>
+        </Grid>
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Lighting Schedule
+            </Typography>
+            <Box sx={{ mb: 3 }}>
+              <LightingConfigSection
+                config={aquarium?.lightingConfig}
+                onChange={handleLightingConfigChange}
+                disabled={!aquarium}
+              />
+            </Box>
+            <Box sx={{ height: 400 }}>
+              <LightDistributionGraph data={distributionData} />
+            </Box>
           </Paper>
         </Grid>
       </Grid>

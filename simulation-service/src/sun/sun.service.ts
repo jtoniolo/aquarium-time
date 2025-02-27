@@ -6,6 +6,7 @@ import {
   EnhancedSimulatedSun,
   SunConfig,
   Time,
+  DistribuitonData,
 } from './sun.model';
 import { MqttService } from 'src/mqtt/mqtt.service';
 import { SunGateway } from 'src/sun/sun.gateway';
@@ -17,6 +18,23 @@ export class SunService {
   private readonly logger = new Logger(SunService.name);
   private latestSimulation: SimulatedSun | null = null;
   private latestEnhancedSimulation: EnhancedSimulatedSun | null = null;
+
+  // Default sun configuration
+  private readonly defaultSettings: SunConfig = {
+    sunRiseTime: {
+      hour: 6,
+      minute: 0,
+      second: 0,
+    },
+    sunDuration: {
+      hour: 16,
+      minute: 0,
+      second: 0,
+    },
+    highLightRatio: 1 / 3,
+    sunriseOffset: 0,
+    durationMultiplier: 1,
+  };
 
   // MqttService and SunGateway are injected via constructor
   constructor(
@@ -34,31 +52,15 @@ export class SunService {
     // Converts the current date to a specific timezone
     const date = this.convertUtcToTimezone(new Date());
 
-    const settings = {
-      sunRiseTime: {
-        hour: 6,
-        minute: 0,
-        second: 0,
-      },
-      sunDuration: {
-        hour: 16,
-        minute: 0,
-        second: 0,
-      },
-      highLightRatio: 1 / 3,
-      sunriseOffset: 0,
-      durationMultiplier: 1,
-    };
-
-    // Simulates the sun's brightness and color at a given location and time
-    const simulatedSun = this.getSolarSimulation(date, settings);
-    const enhanced = this.calculateSunSimulation(date, settings);
+    // Generate default simulation for MQTT (maintaining backward compatibility)
+    const simulatedSun = this.getSolarSimulation(date, this.defaultSettings);
+    const enhanced = this.calculateSunSimulation(date, this.defaultSettings);
 
     // Cache the latest simulation (both basic and enhanced)
     this.latestSimulation = simulatedSun;
     this.latestEnhancedSimulation = enhanced;
 
-    // Emit updates through both MQTT and WebSocket
+    // Emit default simulation through MQTT (maintaining backward compatibility)
     this.mqtt.publish(
       process.env.MQTT_TOPIC,
       JSON.stringify(this.latestSimulation),
@@ -74,24 +76,15 @@ export class SunService {
     return this.latestEnhancedSimulation;
   }
 
-  getDistributionData(): DistribuitonData[] {
-    const data: DistribuitonData[] = [];
+  // New method to get simulation for a specific aquarium
+  getAquariumSimulation(date: Date, config?: SunConfig): EnhancedSimulatedSun {
+    return this.calculateSunSimulation(date, config || this.defaultSettings);
+  }
 
-    const settings: SunConfig = {
-      sunRiseTime: {
-        hour: 6,
-        minute: 0,
-        second: 0,
-      },
-      sunDuration: {
-        hour: 16,
-        minute: 0,
-        second: 0,
-      },
-      highLightRatio: 1 / 3,
-      sunriseOffset: 0,
-      durationMultiplier: 1,
-    };
+  // Modified to accept optional config parameter
+  getDistributionData(config?: SunConfig): DistribuitonData[] {
+    const data: DistribuitonData[] = [];
+    const settings = config || this.defaultSettings;
 
     for (
       let minute = settings.sunRiseTime.hour * 60;
@@ -99,17 +92,21 @@ export class SunService {
       minute += 10
     ) {
       const time = new Date();
-      time.setHours(0, minute, 0, 0); // Set the time to the current minute of the day
+      time.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
       const solarSimulation = this.getSolarSimulation(time, settings);
 
       data.push({
-        time: time.toLocaleString(),
+        time: time.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          hour12: false 
+        }),
         brightness: solarSimulation.brightness,
         red: solarSimulation.rgbw.red,
         green: solarSimulation.rgbw.green,
         blue: solarSimulation.rgbw.blue,
         white: solarSimulation.rgbw.white,
-      }); // Use toFixed to limit the number of decimal places
+      });
     }
     return data;
   }
@@ -373,28 +370,6 @@ export class SunService {
     // Convert the time to seconds
     return time.hour * 3600 + time.minute * 60 + time.second;
   }
-}
-
-import { ApiProperty } from '@nestjs/swagger';
-
-export class DistribuitonData {
-  @ApiProperty({ description: 'The time point of the distribution data' })
-  time: string;
-
-  @ApiProperty({ description: 'The brightness value at this time point' })
-  brightness: number;
-
-  @ApiProperty({ description: 'The red color value at this time point' })
-  red: number;
-
-  @ApiProperty({ description: 'The green color value at this time point' })
-  green: number;
-
-  @ApiProperty({ description: 'The blue color value at this time point' })
-  blue: number;
-
-  @ApiProperty({ description: 'The white color value at this time point' })
-  white: number;
 }
 
 /***
