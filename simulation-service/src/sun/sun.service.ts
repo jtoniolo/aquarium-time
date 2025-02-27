@@ -71,7 +71,10 @@ export class SunService {
     // Get all aquariums and their lights
     const aquariums = await this.aquariumsService.findAll();
 
-    // For each aquarium, calculate its sun simulation and send to each light
+    // Create array to hold all light states
+    const allLights = [];
+
+    // For each aquarium, calculate its sun simulation and collect light states
     for (const aquarium of aquariums) {
       const aquariumSimulation = this.getSolarSimulation(
         date,
@@ -80,23 +83,28 @@ export class SunService {
 
       const lights = await aquarium.lights;
 
-      // For each light in the aquarium, send a message to its specific topic
+      // For each light in the aquarium, prepare its state
       for (const light of lights) {
-        const lightMessage = {
-          ...aquariumSimulation,
-          aquarium_name: aquarium.name,
+        allLights.push({
           entity_id: light.entity_id,
-        };
-
-        const lightTopic = process.env.MQTT_LIGHT_TOPIC.replace(
-          '{entity_id}',
-          light.entity_id,
-        );
-
-        this.mqtt.publish(lightTopic, JSON.stringify(lightMessage));
+          on: aquariumSimulation.on,
+          brightness: aquariumSimulation.brightness,
+          rgbw: {
+            red: aquariumSimulation.rgbw.red,
+            green: aquariumSimulation.rgbw.green,
+            blue: aquariumSimulation.rgbw.blue,
+            white: aquariumSimulation.rgbw.white,
+          },
+        });
       }
     }
 
+    // Send a single MQTT message with all light states
+    const message = {
+      lights: allLights,
+    };
+
+    this.mqtt.publish(process.env.MQTT_LIGHT_TOPIC, JSON.stringify(message));
     this.sunGateway.emitSunUpdate(this.latestEnhancedSimulation);
   }
 
