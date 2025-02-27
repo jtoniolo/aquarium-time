@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Aquarium } from './aquarium.entity';
+import { Light } from '../lights/light.entity';
 
 @Injectable()
 export class AquariumsService {
@@ -10,22 +11,36 @@ export class AquariumsService {
     private aquariumRepository: Repository<Aquarium>,
   ) {}
 
-  findAll(): Promise<Aquarium[]> {
-    return this.aquariumRepository.find({
-      relations: ['lights'],
-    });
+  async findAll(): Promise<Aquarium[]> {
+    const aquariums = await this.aquariumRepository.find();
+    // Load the lights for each aquarium
+    const populatedAquariums = await Promise.all(
+      aquariums.map(async (aquarium) => {
+        const lights = await aquarium.lights;
+        return {
+          ...aquarium,
+          lights: Promise.resolve(lights), // Maintain the Promise<Light[]> type
+        };
+      })
+    );
+    return populatedAquariums;
   }
 
   async findOne(id: string): Promise<Aquarium> {
     const aquarium = await this.aquariumRepository.findOne({
       where: { id },
-      relations: ['lights'],
     });
 
     if (!aquarium) {
       throw new NotFoundException(`Aquarium with ID ${id} not found`);
     }
-    return aquarium;
+
+    // Load the lights and maintain the Promise type
+    const lights = await aquarium.lights;
+    return {
+      ...aquarium,
+      lights: Promise.resolve(lights),
+    };
   }
 
   create(aquarium: Partial<Aquarium>): Promise<Aquarium> {

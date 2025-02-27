@@ -10,6 +10,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { AquariumsService } from './aquariums.service';
 import { Aquarium } from './aquarium.entity';
+import { Light } from '../lights/light.entity';
 
 @ApiTags('aquariums')
 @Controller('aquariums')
@@ -20,11 +21,25 @@ export class AquariumsController {
   @ApiResponse({
     status: 200,
     description: 'List of all aquariums with their lights',
-    type: Aquarium,
-    isArray: true,
+    schema: {
+      type: 'array',
+      items: {
+        allOf: [
+          { $ref: '#/components/schemas/Aquarium' },
+          {
+            properties: {
+              lights: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/Light' },
+              },
+            },
+          },
+        ],
+      },
+    },
   })
   @Get()
-  findAll(): Promise<Aquarium[]> {
+  async findAll(): Promise<Aquarium[]> {
     return this.aquariumsService.findAll();
   }
 

@@ -10,6 +10,7 @@ import {
 } from './sun.model';
 import { MqttService } from 'src/mqtt/mqtt.service';
 import { SunGateway } from 'src/sun/sun.gateway';
+import { AquariumsService } from '../aquariums/aquariums.service';
 
 // This is a service class for handling sun related operations
 @Injectable()
@@ -36,15 +37,16 @@ export class SunService {
     durationMultiplier: 1,
   };
 
-  // MqttService and SunGateway are injected via constructor
+  // MqttService, SunGateway, and AquariumsService are injected via constructor
   constructor(
     private mqtt: MqttService,
     private readonly sunGateway: SunGateway,
+    private readonly aquariumsService: AquariumsService,
   ) {}
 
   // This method is scheduled to run every minute
   @Cron(CronExpression.EVERY_MINUTE)
-  handleCron() {
+  async handleCron() {
     // Logs that the cron job is running
     this.logger.log('cron job running');
     this.logger.debug('Called when the current second is 0');
@@ -65,6 +67,36 @@ export class SunService {
       process.env.MQTT_TOPIC,
       JSON.stringify(this.latestSimulation),
     );
+
+    // Get all aquariums and their lights
+    const aquariums = await this.aquariumsService.findAll();
+
+    // For each aquarium, calculate its sun simulation and send to each light
+    for (const aquarium of aquariums) {
+      const aquariumSimulation = this.getSolarSimulation(
+        date,
+        aquarium.lightingConfig || this.defaultSettings,
+      );
+
+      const lights = await aquarium.lights;
+
+      // For each light in the aquarium, send a message to its specific topic
+      for (const light of lights) {
+        const lightMessage = {
+          ...aquariumSimulation,
+          aquarium_name: aquarium.name,
+          entity_id: light.entity_id,
+        };
+
+        const lightTopic = process.env.MQTT_LIGHT_TOPIC.replace(
+          '{entity_id}',
+          light.entity_id,
+        );
+
+        this.mqtt.publish(lightTopic, JSON.stringify(lightMessage));
+      }
+    }
+
     this.sunGateway.emitSunUpdate(this.latestEnhancedSimulation);
   }
 

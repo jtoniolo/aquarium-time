@@ -34,8 +34,14 @@ export class Aquarium {
   @Column({ nullable: true })
   dimensions?: string;
 
-  @OneToMany(() => Light, (light) => light.aquarium)
-  lights: Light[];
+  @ApiProperty({
+    description: 'The lights connected to this aquarium',
+    type: () => [Light], // Make type lazy with array notation
+  })
+  @OneToMany(() => Light, (light) => light.aquarium, {
+    lazy: true, // Enable lazy loading
+  })
+  lights: Promise<Light[]>; // Change type to Promise for lazy loading
 
   @ApiProperty({
     description:

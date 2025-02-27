@@ -33,9 +33,13 @@ export class Light {
   @ApiProperty({
     description: 'The aquarium this light belongs to',
     nullable: true,
+    type: () => Aquarium, // Make type lazy
   })
-  @ManyToOne(() => Aquarium, (aquarium) => aquarium.lights, { nullable: true })
-  aquarium: Aquarium;
+  @ManyToOne(() => Aquarium, (aquarium) => aquarium.lights, {
+    nullable: true,
+    lazy: true, // Enable lazy loading
+  })
+  aquarium: Promise<Aquarium>; // Change type to Promise for lazy loading
 
   @Column({ nullable: true })
   aquariumId: string;
