@@ -7,7 +7,7 @@ import { SunModule } from '../sun/sun.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Aquarium]), 
+    TypeOrmModule.forFeature([Aquarium]),
     forwardRef(() => SunModule), // Use forwardRef to handle circular dependency
   ],
   providers: [AquariumsService],

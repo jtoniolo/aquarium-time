@@ -9,7 +9,7 @@ import { AquariumsModule } from '../aquariums/aquariums.module';
 
 @Module({
   imports: [
-    MqttModule, 
+    MqttModule,
     TypeOrmModule.forFeature([Aquarium]),
     forwardRef(() => AquariumsModule), // Use forwardRef to handle circular dependency
   ],

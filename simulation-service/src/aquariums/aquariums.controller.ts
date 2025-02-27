@@ -87,12 +87,12 @@ export class AquariumsController {
     @Body() aquarium: Partial<Aquarium>,
   ): Promise<Aquarium> {
     const result = await this.aquariumsService.update(id, aquarium);
-    
+
     // If lighting config was updated, trigger immediate light update
     if (aquarium.lightingConfig !== undefined) {
       await this.sunService.updateAquariumLights(id);
     }
-    
+
     return result;
   }
 

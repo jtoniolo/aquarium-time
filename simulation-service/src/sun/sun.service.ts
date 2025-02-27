@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import {
   RGBW,
@@ -452,7 +458,9 @@ export class SunService {
   private readonly aquariumRepository: Repository<Aquarium>;
 
   async updateAquariumLights(aquariumId: string) {
-    const aquarium = await this.aquariumRepository.findOneBy({ id: aquariumId });
+    const aquarium = await this.aquariumRepository.findOneBy({
+      id: aquariumId,
+    });
     if (!aquarium) {
       throw new NotFoundException(`Aquarium with ID ${aquariumId} not found`);
     }
