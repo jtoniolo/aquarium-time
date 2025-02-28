@@ -1,0 +1,15 @@
+.git
+node_modules
+dist
+npm-debug.log
+README.md
+.env*
+*.pem
+.DS_Store
+coverage
+*.log
+test
+**/*.spec.ts
+.env
+.env.local
+.env.*.local

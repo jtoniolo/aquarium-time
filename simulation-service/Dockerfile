@@ -1,29 +1,22 @@
-# Build UI
-FROM node:20-alpine AS ui-build
-WORKDIR /ui
-COPY aquarium-ui/package.json aquarium-ui/yarn.lock ./
-RUN yarn install --frozen-lockfile
-COPY aquarium-ui .
-RUN yarn build
-
 # Build Service
 FROM node:20-alpine AS service-build
 WORKDIR /service
-COPY simulation-service/package.json simulation-service/yarn.lock ./
+COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
-COPY simulation-service .
+COPY . .
 RUN yarn build
 
 # Production image
-FROM node:20-alpine
+FROM node:20-alpine as serve
 WORKDIR /app
 # Copy service files
 COPY --from=service-build /service/dist ./dist
 COPY --from=service-build /service/node_modules ./node_modules
-# Copy UI static files
-COPY --from=ui-build /ui/.next/standalone ./ui
-COPY --from=ui-build /ui/public ./ui/public
-COPY --from=ui-build /ui/.next/static ./ui/.next/static
 
+RUN mkdir -p /app/data
+
+ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["node", "dist/main"]
+
+VOLUME ["/app/data"]
+CMD ["node", "--trace-warnings", "--unhandled-rejections=strict", "dist/main"]
