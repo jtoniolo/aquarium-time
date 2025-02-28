@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import { API_BASE_URL } from "../config";
 import type { SunUpdate } from "../hooks/useSunSocket";
-import { SunConfig } from "../../../simulation-service/src/sun/sun.model";
+import { SunConfig } from "../types";
 
 interface DistributionData {
   time: string;

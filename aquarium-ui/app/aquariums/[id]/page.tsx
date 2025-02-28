@@ -36,7 +36,7 @@ import { fetchDistributionData } from "../../store/sunSlice";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import LightingConfigSection from "../../components/LightingConfigSection";
 import LightDistributionGraph from "../../components/LightDistributionGraph";
-import { SunConfig } from "../../../../simulation-service/src/sun/sun.model";
+import { SunConfig } from "../../types";
 import { createSelector } from "@reduxjs/toolkit";
 
 // Create memoized selectors

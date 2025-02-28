@@ -52,13 +52,18 @@ export class SunService {
     private readonly sunGateway: SunGateway,
     @Inject(forwardRef(() => AquariumsService))
     private readonly aquariumsService: AquariumsService,
-  ) {}
+  ) {
+    this.logger.log('SunService initialized');
+    this.handleCron().catch((err) =>
+      this.logger.error('Initial cron failed:', err),
+    );
+  }
 
   // This method is scheduled to run every minute
   @Cron(CronExpression.EVERY_MINUTE)
   async handleCron() {
     // Logs that the cron job is running
-    this.logger.log('cron job running');
+    this.logger.log('Running scheduled cron job...');
     this.logger.debug('Called when the current second is 0');
 
     // Converts the current date to a specific timezone

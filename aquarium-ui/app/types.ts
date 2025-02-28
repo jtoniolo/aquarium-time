@@ -63,6 +63,7 @@ export interface Light {
   last_updated?: Date;
 }
 
+// Shared types between frontend and backend
 export interface Time {
   hour: number;
   minute: number;
@@ -78,6 +79,8 @@ export interface SunConfig {
   emulateCloudCover?: boolean;
   maxIntensity?: number;
 }
+
+export type TimeOfDay = "sunrise" | "day" | "sunset" | "night";
 
 export interface Aquarium {
   id: string;
