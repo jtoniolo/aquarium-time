@@ -43,4 +43,22 @@ export class Light {
 
   @Column({ nullable: true })
   aquariumId: string;
+
+  @ApiProperty({
+    description: 'Whether the light supports RGBW color mode',
+  })
+  @Column({ default: false })
+  isRGBW: boolean;
+
+  @ApiProperty({
+    description: 'Whether the light supports color temperature adjustments',
+  })
+  @Column({ default: false })
+  color_temp: boolean;
+
+  @ApiProperty({
+    description: 'Whether the light supports brightness adjustments',
+  })
+  @Column({ default: false })
+  isBrightness: boolean;
 }

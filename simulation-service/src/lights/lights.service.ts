@@ -27,10 +27,26 @@ export class LightsService {
     const light = await this.lightRepository.findOneBy({ entity_id });
     if (light) {
       const haLight = await this.haService.getLightState(entity_id);
-      await this.update(entity_id, {
-        entity_data: haLight,
-        last_updated: this.formatDate(haLight.last_updated),
-      });
+      
+      // Update light capabilities if Home Assistant reports supported color modes
+      if (haLight.attributes.supported_color_modes) {
+        const updates: Partial<Light> = {
+          entity_data: haLight,
+          last_updated: this.formatDate(haLight.last_updated),
+          isRGBW: haLight.attributes.supported_color_modes.includes('rgbw'),
+          color_temp: haLight.attributes.supported_color_modes.includes('color_temp'),
+        };
+        // If RGBW is supported or brightness mode is supported, set isBrightness
+        updates.isBrightness = updates.isRGBW || haLight.attributes.supported_color_modes.includes('brightness');
+        
+        await this.update(entity_id, updates);
+      } else {
+        await this.update(entity_id, {
+          entity_data: haLight,
+          last_updated: this.formatDate(haLight.last_updated),
+        });
+      }
+      
       return this.lightRepository.findOneBy({ entity_id });
     }
     return null;
@@ -40,6 +56,15 @@ export class LightsService {
     const haLight = await this.haService.getLightState(light.entity_id);
     light.entity_data = haLight;
     light.last_updated = this.formatDate(haLight.last_updated);
+    
+    // Set color mode support properties based on HomeAssistant attributes
+    if (haLight.attributes.supported_color_modes) {
+      light.isRGBW = haLight.attributes.supported_color_modes.includes('rgbw');
+      light.color_temp = haLight.attributes.supported_color_modes.includes('color_temp');
+      // If RGBW is supported or brightness mode is supported, set isBrightness
+      light.isBrightness = light.isRGBW || haLight.attributes.supported_color_modes.includes('brightness');
+    }
+
     return this.lightRepository.save(light);
   }
 
