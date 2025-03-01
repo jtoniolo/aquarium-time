@@ -12,34 +12,35 @@ export class AquariumsService {
   ) {}
 
   async findAll(): Promise<Aquarium[]> {
-    const aquariums = await this.aquariumRepository.find();
-    // Load the lights for each aquarium
-    const populatedAquariums = await Promise.all(
-      aquariums.map(async (aquarium) => {
-        const lights = await aquarium.lights;
-        return {
-          ...aquarium,
-          lights: Promise.resolve(lights), // Maintain the Promise<Light[]> type
-        };
-      })
-    );
-    return populatedAquariums;
+    const aquariums = await this.aquariumRepository.find({
+      relations: {
+        lights: true,
+      },
+    });
+
+    // Transform the data to ensure lights are in the correct property
+    return aquariums.map((aquarium) => ({
+      ...aquarium,
+      lights: aquarium['__lights__'],
+    }));
   }
 
   async findOne(id: string): Promise<Aquarium> {
     const aquarium = await this.aquariumRepository.findOne({
       where: { id },
+      relations: {
+        lights: true,
+      },
     });
 
     if (!aquarium) {
       throw new NotFoundException(`Aquarium with ID ${id} not found`);
     }
 
-    // Load the lights and maintain the Promise type
-    const lights = await aquarium.lights;
+    // Transform the data to ensure lights are in the correct property
     return {
       ...aquarium,
-      lights: Promise.resolve(lights),
+      lights: aquarium['__lights__'],
     };
   }
 
