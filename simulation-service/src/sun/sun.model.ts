@@ -13,6 +13,11 @@ export class RGBW {
 
   @ApiProperty({ description: 'The white color value, between 0 and 255' })
   white: number;
+
+  @ApiProperty({
+    description: 'The color temperature in Kelvin, between 2700K and 6500K',
+  })
+  color_temp: number;
 }
 // This class represents a time with hour, minute, and second
 export class Time {
@@ -43,6 +48,7 @@ export class SimulatedSun {
       green: 0,
       blue: 0,
       white: 0,
+      color_temp: 6500,
     };
   }
 
@@ -142,4 +148,9 @@ export class DistribuitonData {
 
   @ApiProperty({ description: 'The white color value at this time point' })
   white: number;
+
+  @ApiProperty({
+    description: 'The color temperature value at this point in Kelvin',
+  })
+  color_temp: number;
 }

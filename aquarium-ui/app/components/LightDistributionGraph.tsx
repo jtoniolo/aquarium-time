@@ -28,6 +28,7 @@ interface LightingData {
   green: number;
   blue: number;
   white: number;
+  color_temp: number;
 }
 
 interface LightDistributionGraphProps {
@@ -42,6 +43,11 @@ export default function LightDistributionGraph({
     plugins: {
       legend: {
         position: "top" as const,
+        align: "start" as const,
+        labels: {
+          boxWidth: 20,
+          padding: 20,
+        },
       },
       title: {
         display: true,
@@ -55,6 +61,21 @@ export default function LightDistributionGraph({
         title: {
           display: true,
           text: "Intensity (%)",
+        },
+      },
+      "color-temp": {
+        beginAtZero: true,
+        max: 100,
+        position: "right" as const,
+        title: {
+          display: true,
+          text: "Color Temperature",
+        },
+        ticks: {
+          callback(tickValue: string | number) {
+            const value = Number(tickValue);
+            return Math.round((value / 100) * (6500 - 2700) + 2700) + "K";
+          },
         },
       },
       x: {
@@ -107,6 +128,13 @@ export default function LightDistributionGraph({
         data: data.map((d) => (d.white / 255) * 100),
         borderColor: "rgb(201, 203, 207)",
         backgroundColor: "rgba(201, 203, 207, 0.5)",
+      },
+      {
+        label: "Color Temp (K)",
+        data: data.map((d) => ((d.color_temp - 2700) / (6500 - 2700)) * 100),
+        borderColor: "rgb(255, 159, 64)",
+        backgroundColor: "rgba(255, 159, 64, 0.5)",
+        yAxisID: "color-temp",
       },
     ],
   };

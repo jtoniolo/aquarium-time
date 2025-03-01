@@ -110,6 +110,7 @@ export class SunService {
             blue: aquariumSimulation.rgbw.blue,
             white: aquariumSimulation.rgbw.white,
           },
+          color_temp: aquariumSimulation.rgbw.color_temp,
         });
       }
     }
@@ -161,6 +162,7 @@ export class SunService {
         green: solarSimulation.rgbw.green,
         blue: solarSimulation.rgbw.blue,
         white: solarSimulation.rgbw.white,
+        color_temp: solarSimulation.rgbw.color_temp,
       });
     }
     return data;
@@ -187,6 +189,11 @@ export class SunService {
     const timeInSeconds = this.getTimeInSeconds(Time.fromDate(time));
     const sunriseTimeInSeconds = this.getTimeInSeconds(settings.sunRiseTime);
     const durationInSeconds = this.getTimeInSeconds(settings.sunDuration);
+    const totalSeconds = durationInSeconds;
+    const middleDuration = totalSeconds / 3;
+    const otherDuration = (totalSeconds - middleDuration) / 2;
+    const firstPartEnd = sunriseTimeInSeconds + otherDuration;
+    const secondPartEnd = firstPartEnd + middleDuration;
 
     const enhanced = new EnhancedSimulatedSun();
 
@@ -207,8 +214,6 @@ export class SunService {
 
       if (timeInSeconds < sunriseTimeInSeconds) {
         // Before sunrise - calculate how close we are to sunrise
-        // If current time is just after midnight, we need to consider time since midnight
-        // plus the time from sunset yesterday up to midnight
         const timeUntilSunrise = sunriseTimeInSeconds - timeInSeconds;
         const totalNightDuration = 24 * 3600 - durationInSeconds; // Total night duration
         enhanced.cyclePercentage =
@@ -234,16 +239,30 @@ export class SunService {
     // Calculate the brightness and RGBW values based on the time since sunrise
     enhanced.brightness = Math.round((brightnessFactor / 255) * 100) || 1;
 
-    // Convert time values to total seconds since start of day for proper scaling
-    const currentTimeSeconds = this.getTimeInSeconds(Time.fromDate(time));
-    const sunriseTimeSeconds = this.getTimeInSeconds(settings.sunRiseTime);
-    const durationSeconds = this.getTimeInSeconds(settings.sunDuration);
+    // Calculate color temperature progression
+    const MIN_TEMP = 2700;
+    const MAX_TEMP = 6500;
+    let colorTemp: number;
+
+    if (timeInSeconds <= firstPartEnd) {
+      // During sunrise: progress from warm to cool
+      const progress = (timeInSeconds - sunriseTimeInSeconds) / otherDuration;
+      colorTemp = MIN_TEMP + (MAX_TEMP - MIN_TEMP) * progress;
+    } else if (timeInSeconds <= secondPartEnd) {
+      // Middle of day: stay at cool temperature
+      colorTemp = MAX_TEMP;
+    } else {
+      // During sunset: progress from cool to warm
+      const progress = 1 - (timeInSeconds - secondPartEnd) / otherDuration;
+      colorTemp = MIN_TEMP + (MAX_TEMP - MIN_TEMP) * progress;
+    }
 
     enhanced.rgbw = this.getRGBW(
       brightnessFactor,
-      currentTimeSeconds,
-      sunriseTimeSeconds,
-      settings.sunDuration.hour + (settings.sunDuration.minute / 60)
+      timeInSeconds,
+      sunriseTimeInSeconds,
+      settings.sunDuration.hour + settings.sunDuration.minute / 60,
+      Math.round(colorTemp),
     );
 
     // Calculate time of day and cycle percentage for daytime
@@ -254,7 +273,6 @@ export class SunService {
 
     if (timeInSeconds <= sunriseEnd) {
       enhanced.timeOfDay = 'sunrise';
-      // During sunrise transition - percentage through the 1-hour transition
       enhanced.cyclePercentage = Math.min(
         ((timeInSeconds - sunriseTimeInSeconds) / TRANSITION_DURATION) * 100,
         100,
@@ -327,7 +345,13 @@ export class SunService {
     return factor;
   }
 
-  getRGBW(brightnessFactor, currentTime, startTime, duration) {
+  getRGBW(
+    brightnessFactor,
+    currentTime,
+    startTime,
+    duration,
+    colorTemp = 6500,
+  ) {
     const rgbw = new RGBW();
     const totalSeconds = duration * 3600;
     const middleDuration = totalSeconds / 3;
@@ -344,27 +368,33 @@ export class SunService {
       // Sunrise transition: Start more red, gradually increase green and blue
       const progress = (currentTime - startTime) / otherDuration;
       const easedProgress = Math.pow(progress, 2);
-      green = (brightnessFactor * easedProgress);
-      blue = (brightnessFactor * Math.pow(progress, 3));
-      
-      this.logger.debug(`Sunrise - Progress: ${progress}, Eased: ${easedProgress}, Green: ${green}, Blue: ${blue}`);
+      green = brightnessFactor * easedProgress;
+      blue = brightnessFactor * Math.pow(progress, 3);
+
+      this.logger.debug(
+        `Sunrise - Progress: ${progress}, Eased: ${easedProgress}, Green: ${green}, Blue: ${blue}, ColorTemp: ${colorTemp}K`,
+      );
     } else if (currentTime <= secondPartEnd) {
       green = brightnessFactor;
       blue = brightnessFactor;
-      
-      this.logger.debug(`Midday - Green: ${green}, Blue: ${blue}`);
+
+      this.logger.debug(
+        `Midday - Green: ${green}, Blue: ${blue}, ColorTemp: ${colorTemp}K`,
+      );
     } else {
       const progress = 1 - (currentTime - secondPartEnd) / otherDuration;
       const easedProgress = Math.pow(progress, 2);
-      green = (brightnessFactor * easedProgress);
-      blue = (brightnessFactor * Math.pow(progress, 3));
-      
-      this.logger.debug(`Sunset - Progress: ${progress}, Eased: ${easedProgress}, Green: ${green}, Blue: ${blue}`);
+      green = brightnessFactor * easedProgress;
+      blue = brightnessFactor * Math.pow(progress, 3);
+
+      this.logger.debug(
+        `Sunset - Progress: ${progress}, Eased: ${easedProgress}, Green: ${green}, Blue: ${blue}, ColorTemp: ${colorTemp}K`,
+      );
     }
 
     // Ensure we maintain minimum color values for visual interest
     green = Math.max(green, brightnessFactor * 0.15); // 15% minimum green
-    blue = Math.max(blue, brightnessFactor * 0.1);   // 10% minimum blue
+    blue = Math.max(blue, brightnessFactor * 0.1); // 10% minimum blue
 
     const white = brightnessFactor;
 
@@ -372,8 +402,11 @@ export class SunService {
     rgbw.green = Math.round(green);
     rgbw.blue = Math.round(blue);
     rgbw.white = Math.round(white);
+    rgbw.color_temp = colorTemp;
 
-    this.logger.debug(`Final RGBW - R: ${rgbw.red}, G: ${rgbw.green}, B: ${rgbw.blue}, W: ${rgbw.white}`);
+    this.logger.debug(
+      `Final RGBW - R: ${rgbw.red}, G: ${rgbw.green}, B: ${rgbw.blue}, W: ${rgbw.white}, ColorTemp: ${colorTemp}K`,
+    );
     return rgbw;
   }
 
@@ -471,6 +504,7 @@ export class SunService {
         blue: aquariumSimulation.rgbw.blue,
         white: aquariumSimulation.rgbw.white,
       },
+      color_temp: aquariumSimulation.rgbw.color_temp,
     }));
 
     if (lightStates.length > 0) {
