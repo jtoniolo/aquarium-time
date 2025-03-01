@@ -47,7 +47,10 @@ export class HomeAssistantService {
       );
       return data;
     } catch (error) {
-      this.logger.error(`Failed to check Home Assistant API: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to check Home Assistant API: ${error.message}`,
+        error.stack,
+      );
       throw new HttpException(
         error.response?.data?.message || 'Failed to check API status',
         error.response?.status || 500,
@@ -67,7 +70,10 @@ export class HomeAssistantService {
       const lightEntities = data.filter(this.isLightEntity);
       return lightEntities;
     } catch (error) {
-      this.logger.error(`Failed to fetch all lights: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to fetch all lights: ${error.message}`,
+        error.stack,
+      );
       throw new HttpException(
         error.response?.data?.message || 'Failed to fetch lights',
         error.response?.status || 500,
@@ -87,7 +93,10 @@ export class HomeAssistantService {
       );
       return data;
     } catch (error) {
-      this.logger.error(`Failed to fetch entity state for ${entityId}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to fetch entity state for ${entityId}: ${error.message}`,
+        error.stack,
+      );
       throw new HttpException(
         error.response?.data?.message || 'Failed to fetch entity state',
         error.response?.status || 500,
@@ -121,12 +130,15 @@ export class HomeAssistantService {
       );
       return data;
     } catch (error) {
-      this.logger.error(`Failed to update entity state for ${entityId}: ${error.message}`, {
-        entityId,
-        state,
-        attributes,
-        error: error.stack,
-      });
+      this.logger.error(
+        `Failed to update entity state for ${entityId}: ${error.message}`,
+        {
+          entityId,
+          state,
+          attributes,
+          error: error.stack,
+        },
+      );
       throw new HttpException(
         error.response?.data?.message || 'Failed to update entity state',
         error.response?.status || 500,
