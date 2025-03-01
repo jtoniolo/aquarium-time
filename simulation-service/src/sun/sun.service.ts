@@ -232,12 +232,18 @@ export class SunService {
     );
 
     // Calculate the brightness and RGBW values based on the time since sunrise
-    enhanced.brightness = Math.round((brightnessFactor / 255) * 100) || 1; // brightness needs to be at least 1 for the lights to come on
+    enhanced.brightness = Math.round((brightnessFactor / 255) * 100) || 1;
+
+    // Convert time values to total seconds since start of day for proper scaling
+    const currentTimeSeconds = this.getTimeInSeconds(Time.fromDate(time));
+    const sunriseTimeSeconds = this.getTimeInSeconds(settings.sunRiseTime);
+    const durationSeconds = this.getTimeInSeconds(settings.sunDuration);
+
     enhanced.rgbw = this.getRGBW(
       brightnessFactor,
-      timeInSeconds,
-      sunriseTimeInSeconds,
-      durationInSeconds,
+      currentTimeSeconds,
+      sunriseTimeSeconds,
+      settings.sunDuration.hour + (settings.sunDuration.minute / 60)
     );
 
     // Calculate time of day and cycle percentage for daytime
@@ -323,27 +329,42 @@ export class SunService {
 
   getRGBW(brightnessFactor, currentTime, startTime, duration) {
     const rgbw = new RGBW();
-
     const totalSeconds = duration * 3600;
-    const middleDuration = totalSeconds / 3; // middle third of the day
+    const middleDuration = totalSeconds / 3;
     const otherDuration = (totalSeconds - middleDuration) / 2;
 
     const firstPartEnd = startTime + otherDuration;
     const secondPartEnd = firstPartEnd + middleDuration;
 
-    let red, green, blue;
+    // Base red value stays consistent with brightness factor
+    const red = brightnessFactor;
+    let green, blue;
 
-    if (currentTime <= firstPartEnd || currentTime > secondPartEnd) {
-      // Morning or evening, more red/orange
-      red = brightnessFactor;
-      green = (200 / 255) * brightnessFactor;
-      blue = (50 / 255) * brightnessFactor;
-    } else {
-      // Middle of the day, normal color
-      red = brightnessFactor;
+    if (currentTime <= firstPartEnd) {
+      // Sunrise transition: Start more red, gradually increase green and blue
+      const progress = (currentTime - startTime) / otherDuration;
+      const easedProgress = Math.pow(progress, 2);
+      green = (brightnessFactor * easedProgress);
+      blue = (brightnessFactor * Math.pow(progress, 3));
+      
+      this.logger.debug(`Sunrise - Progress: ${progress}, Eased: ${easedProgress}, Green: ${green}, Blue: ${blue}`);
+    } else if (currentTime <= secondPartEnd) {
       green = brightnessFactor;
       blue = brightnessFactor;
+      
+      this.logger.debug(`Midday - Green: ${green}, Blue: ${blue}`);
+    } else {
+      const progress = 1 - (currentTime - secondPartEnd) / otherDuration;
+      const easedProgress = Math.pow(progress, 2);
+      green = (brightnessFactor * easedProgress);
+      blue = (brightnessFactor * Math.pow(progress, 3));
+      
+      this.logger.debug(`Sunset - Progress: ${progress}, Eased: ${easedProgress}, Green: ${green}, Blue: ${blue}`);
     }
+
+    // Ensure we maintain minimum color values for visual interest
+    green = Math.max(green, brightnessFactor * 0.15); // 15% minimum green
+    blue = Math.max(blue, brightnessFactor * 0.1);   // 10% minimum blue
 
     const white = brightnessFactor;
 
@@ -352,6 +373,7 @@ export class SunService {
     rgbw.blue = Math.round(blue);
     rgbw.white = Math.round(white);
 
+    this.logger.debug(`Final RGBW - R: ${rgbw.red}, G: ${rgbw.green}, B: ${rgbw.blue}, W: ${rgbw.white}`);
     return rgbw;
   }
 
