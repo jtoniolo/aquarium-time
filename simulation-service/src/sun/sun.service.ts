@@ -20,12 +20,11 @@ import { AquariumsService } from '../aquariums/aquariums.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Aquarium } from '../aquariums/aquarium.entity';
+import { ConfigService } from '@nestjs/config';
 
 // This is a service class for handling sun related operations
 @Injectable()
 export class SunService {
-  // Logger instance for logging
-  private readonly logger = new Logger(SunService.name);
   private latestSimulation: SimulatedSun | null = null;
   private latestEnhancedSimulation: EnhancedSimulatedSun | null = null;
 
@@ -52,6 +51,8 @@ export class SunService {
     private readonly sunGateway: SunGateway,
     @Inject(forwardRef(() => AquariumsService))
     private readonly aquariumsService: AquariumsService,
+    private readonly configService: ConfigService,
+    @Inject(Logger) private readonly logger: Logger,
   ) {
     this.logger.log('SunService initialized');
     this.handleCron().catch((err) =>
@@ -62,11 +63,7 @@ export class SunService {
   // This method is scheduled to run every minute
   @Cron(CronExpression.EVERY_MINUTE)
   async handleCron() {
-    // Logs that the cron job is running
-    this.logger.log('Running scheduled cron job...');
-    this.logger.debug('Called when the current second is 0');
-
-    // Converts the current date to a specific timezone
+    this.logger.debug('Running cron');
     const date = this.convertUtcToTimezone(new Date());
 
     // Generate default simulation for MQTT (maintaining backward compatibility)
@@ -172,10 +169,6 @@ export class SunService {
   private convertUtcToTimezone(date: Date): Date {
     const timezone = process.env.TZ ?? 'America/Toronto';
     const utcDate = new Date(date.toUTCString());
-
-    this.logger.log(
-      `Date Conversion: ${date}; UTC Date: ${utcDate}; Timezone: ${timezone}; Converted Date: ${utcDate.toLocaleString('en-US', { timeZone: timezone })}`,
-    );
     return new Date(utcDate.toLocaleString('en-US', { timeZone: timezone }));
   }
 
@@ -365,31 +358,18 @@ export class SunService {
     let green, blue;
 
     if (currentTime <= firstPartEnd) {
-      // Sunrise transition: Start more red, gradually increase green and blue
       const progress = (currentTime - startTime) / otherDuration;
       const easedProgress = Math.pow(progress, 2);
       green = brightnessFactor * easedProgress;
       blue = brightnessFactor * Math.pow(progress, 3);
-
-      this.logger.debug(
-        `Sunrise - Progress: ${progress}, Eased: ${easedProgress}, Green: ${green}, Blue: ${blue}, ColorTemp: ${colorTemp}K`,
-      );
     } else if (currentTime <= secondPartEnd) {
       green = brightnessFactor;
       blue = brightnessFactor;
-
-      this.logger.debug(
-        `Midday - Green: ${green}, Blue: ${blue}, ColorTemp: ${colorTemp}K`,
-      );
     } else {
       const progress = 1 - (currentTime - secondPartEnd) / otherDuration;
       const easedProgress = Math.pow(progress, 2);
       green = brightnessFactor * easedProgress;
       blue = brightnessFactor * Math.pow(progress, 3);
-
-      this.logger.debug(
-        `Sunset - Progress: ${progress}, Eased: ${easedProgress}, Green: ${green}, Blue: ${blue}, ColorTemp: ${colorTemp}K`,
-      );
     }
 
     // Ensure we maintain minimum color values for visual interest
@@ -404,9 +384,6 @@ export class SunService {
     rgbw.white = Math.round(white);
     rgbw.color_temp = colorTemp;
 
-    this.logger.debug(
-      `Final RGBW - R: ${rgbw.red}, G: ${rgbw.green}, B: ${rgbw.blue}, W: ${rgbw.white}, ColorTemp: ${colorTemp}K`,
-    );
     return rgbw;
   }
 

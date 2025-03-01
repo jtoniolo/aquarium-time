@@ -7,6 +7,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { LightsModule } from './lights/lights.module';
 import { AquariumsModule } from './aquariums/aquariums.module';
 import * as fs from 'fs';
+import * as Joi from 'joi';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
@@ -26,7 +27,13 @@ import { join } from 'path';
     LightsModule,
     AquariumsModule,
     ConfigModule.forRoot({
+      isGlobal: true,
       ignoreEnvFile: !fs.existsSync('.env'),
+      validationSchema: Joi.object({
+        LOG_LEVEL: Joi.string()
+          .valid('error', 'warn', 'log', 'debug', 'verbose')
+          .default('warn'),
+      }),
     }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'ui'),

@@ -6,6 +6,7 @@ import { SunGateway } from './sun.gateway';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Aquarium } from '../aquariums/aquarium.entity';
 import { AquariumsModule } from '../aquariums/aquariums.module';
+import { Logger } from '@nestjs/common';
 
 @Module({
   imports: [
@@ -13,7 +14,14 @@ import { AquariumsModule } from '../aquariums/aquariums.module';
     TypeOrmModule.forFeature([Aquarium]),
     forwardRef(() => AquariumsModule), // Use forwardRef to handle circular dependency
   ],
-  providers: [SunService, SunGateway],
+  providers: [
+    SunService,
+    SunGateway,
+    {
+      provide: Logger,
+      useValue: new Logger('SunService'),
+    },
+  ],
   controllers: [SunController],
   exports: [SunService], // Export SunService so it can be used by other modules
 })

@@ -11,11 +11,17 @@ import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import * as path from 'path';
+import { ConsoleLogger, LogLevel } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   console.log('Starting bootstrap process...');
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    logger: console,
+    // This is where you're supposed to set the log level!
+    logger: new ConsoleLogger('Sim Service', {
+      // Copilot! Log settings go here shithead!!!!!
+      logLevels: [(process.env.LOG_LEVEL as LogLevel) || 'warn'],
+    }),
   });
   console.log('NestFactory.create completed');
 
@@ -50,12 +56,4 @@ async function bootstrap() {
   }
 }
 
-try {
-  bootstrap().catch((err) => {
-    console.error('Fatal bootstrap error:', err);
-    process.exit(1);
-  });
-} catch (error) {
-  console.error(error);
-  process.exit(1);
-}
+bootstrap();

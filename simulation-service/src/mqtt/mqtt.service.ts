@@ -1,19 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import * as mqtt from 'mqtt';
 
 // This service is responsible for handling MQTT operations
 @Injectable()
 export class MqttService {
-  // Logger instance for logging
-  private readonly logger = new Logger(MqttService.name);
-
   // MQTT client instance
   private client: mqtt.MqttClient | undefined;
 
-  constructor() {
+  constructor(@Inject(Logger) private readonly logger: Logger) {
     const broker = process.env.MQTT_BROKER;
     this.logger.log('MqttService constructor');
-    this.logger.log('Environment variables:', {
+    this.logger.debug('Environment variables:', {
       MQTT_BROKER: process.env.MQTT_BROKER,
       MQTT_TOPIC: process.env.MQTT_TOPIC,
       MQTT_LIGHT_TOPIC: process.env.MQTT_LIGHT_TOPIC,
@@ -26,19 +23,15 @@ export class MqttService {
       return;
     }
 
-    // Log the MQTT broker URL
     this.logger.log(`Connecting to MQTT broker: ${broker}`);
 
     try {
-      // Connect to the MQTT broker
       this.client = mqtt.connect(broker);
 
-      // Log when the MQTT client is connected to the broker
       this.client.on('connect', () => {
         this.logger.log('Connected to MQTT broker');
       });
 
-      // Log when there is an error with the MQTT client
       this.client.on('error', (error) => {
         this.logger.error('MQTT client error:', error);
       });

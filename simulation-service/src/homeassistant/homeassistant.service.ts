@@ -1,4 +1,4 @@
-import { Injectable, HttpException, Logger } from '@nestjs/common';
+import { Injectable, HttpException, Logger, Inject } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -13,11 +13,11 @@ import { firstValueFrom } from 'rxjs';
 export class HomeAssistantService {
   private readonly baseUrl: string;
   private readonly authToken: string;
-  private readonly logger = new Logger(HomeAssistantService.name);
 
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    @Inject(Logger) private readonly logger: Logger,
   ) {
     const base = this.configService.getOrThrow<string>('HOMEASSISTANT_URL');
     this.baseUrl = base.endsWith('/api') ? base : `${base}/api`;

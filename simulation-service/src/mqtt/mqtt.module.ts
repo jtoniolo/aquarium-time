@@ -1,10 +1,16 @@
 import { Module } from '@nestjs/common';
 import { MqttService } from './mqtt.service';
+import { Logger } from '@nestjs/common';
 
 @Module({
   imports: [],
-  controllers: [],
+  providers: [
+    MqttService,
+    {
+      provide: Logger,
+      useValue: new Logger('MqttService'),
+    },
+  ],
   exports: [MqttService],
-  providers: [MqttService],
 })
 export class MqttModule {}

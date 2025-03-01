@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Light } from './light.entity';
 import { HomeAssistantService } from '../homeassistant/homeassistant.service';
 import { HALightState } from '../homeassistant/types';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class LightsService {
@@ -11,6 +12,7 @@ export class LightsService {
     @InjectRepository(Light)
     private lightRepository: Repository<Light>,
     private readonly haService: HomeAssistantService,
+    @Inject(Logger) private readonly logger: Logger,
   ) {}
 
   private formatDate(dateStr: string): Date {
@@ -27,20 +29,23 @@ export class LightsService {
     const light = await this.lightRepository.findOneBy({ entity_id });
     if (light) {
       const haLight = await this.haService.getLightState(entity_id);
-      
+
       // Update light capabilities if Home Assistant reports supported color modes
       if (haLight.attributes.supported_color_modes) {
         const updates: Partial<Light> = {
           entity_data: haLight,
           last_updated: this.formatDate(haLight.last_updated),
           isRGBW: haLight.attributes.supported_color_modes.includes('rgbw'),
-          color_temp: haLight.attributes.supported_color_modes.includes('color_temp'),
+          color_temp:
+            haLight.attributes.supported_color_modes.includes('color_temp'),
           min_color_temp_kelvin: haLight.attributes.min_color_temp_kelvin,
           max_color_temp_kelvin: haLight.attributes.max_color_temp_kelvin,
         };
         // If RGBW is supported or brightness mode is supported, set isBrightness
-        updates.isBrightness = updates.isRGBW || haLight.attributes.supported_color_modes.includes('brightness');
-        
+        updates.isBrightness =
+          updates.isRGBW ||
+          haLight.attributes.supported_color_modes.includes('brightness');
+
         await this.update(entity_id, updates);
       } else {
         await this.update(entity_id, {
@@ -48,7 +53,7 @@ export class LightsService {
           last_updated: this.formatDate(haLight.last_updated),
         });
       }
-      
+
       return this.lightRepository.findOneBy({ entity_id });
     }
     return null;
@@ -58,15 +63,18 @@ export class LightsService {
     const haLight = await this.haService.getLightState(light.entity_id);
     light.entity_data = haLight;
     light.last_updated = this.formatDate(haLight.last_updated);
-    
+
     // Set color mode support properties based on HomeAssistant attributes
     if (haLight.attributes.supported_color_modes) {
       light.isRGBW = haLight.attributes.supported_color_modes.includes('rgbw');
-      light.color_temp = haLight.attributes.supported_color_modes.includes('color_temp');
+      light.color_temp =
+        haLight.attributes.supported_color_modes.includes('color_temp');
       light.min_color_temp_kelvin = haLight.attributes.min_color_temp_kelvin;
       light.max_color_temp_kelvin = haLight.attributes.max_color_temp_kelvin;
       // If RGBW is supported or brightness mode is supported, set isBrightness
-      light.isBrightness = light.isRGBW || haLight.attributes.supported_color_modes.includes('brightness');
+      light.isBrightness =
+        light.isRGBW ||
+        haLight.attributes.supported_color_modes.includes('brightness');
     }
 
     return this.lightRepository.save(light);
