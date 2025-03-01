@@ -35,6 +35,8 @@ export class LightsService {
           last_updated: this.formatDate(haLight.last_updated),
           isRGBW: haLight.attributes.supported_color_modes.includes('rgbw'),
           color_temp: haLight.attributes.supported_color_modes.includes('color_temp'),
+          min_color_temp_kelvin: haLight.attributes.min_color_temp_kelvin,
+          max_color_temp_kelvin: haLight.attributes.max_color_temp_kelvin,
         };
         // If RGBW is supported or brightness mode is supported, set isBrightness
         updates.isBrightness = updates.isRGBW || haLight.attributes.supported_color_modes.includes('brightness');
@@ -61,6 +63,8 @@ export class LightsService {
     if (haLight.attributes.supported_color_modes) {
       light.isRGBW = haLight.attributes.supported_color_modes.includes('rgbw');
       light.color_temp = haLight.attributes.supported_color_modes.includes('color_temp');
+      light.min_color_temp_kelvin = haLight.attributes.min_color_temp_kelvin;
+      light.max_color_temp_kelvin = haLight.attributes.max_color_temp_kelvin;
       // If RGBW is supported or brightness mode is supported, set isBrightness
       light.isBrightness = light.isRGBW || haLight.attributes.supported_color_modes.includes('brightness');
     }

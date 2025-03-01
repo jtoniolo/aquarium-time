@@ -61,4 +61,18 @@ export class Light {
   })
   @Column({ default: false })
   isBrightness: boolean;
+
+  @ApiProperty({
+    description: 'Minimum supported color temperature in Kelvin',
+    example: 2700,
+  })
+  @Column({ nullable: true })
+  min_color_temp_kelvin: number;
+
+  @ApiProperty({
+    description: 'Maximum supported color temperature in Kelvin',
+    example: 6500,
+  })
+  @Column({ nullable: true })
+  max_color_temp_kelvin: number;
 }

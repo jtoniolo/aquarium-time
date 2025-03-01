@@ -52,6 +52,8 @@ export class LightsController {
               isRGBW: { type: 'boolean' },
               color_temp: { type: 'boolean' },
               isBrightness: { type: 'boolean' },
+              min_color_temp_kelvin: { type: 'number' },
+              max_color_temp_kelvin: { type: 'number' },
             },
           },
         },
