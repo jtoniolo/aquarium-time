@@ -1,4 +1,4 @@
-import { Injectable, HttpException } from '@nestjs/common';
+import { Injectable, HttpException, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -11,13 +11,16 @@ import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class HomeAssistantService {
-  private readonly baseUrl: string = 'http://homeassistant.local:8123/api';
+  private readonly baseUrl: string;
   private readonly authToken: string;
+  private readonly logger = new Logger(HomeAssistantService.name);
 
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
+    const base = this.configService.getOrThrow<string>('HOMEASSISTANT_URL');
+    this.baseUrl = base.endsWith('/api') ? base : `${base}/api`;
     this.authToken = this.configService.getOrThrow('HOMEASSISTANT_TOKEN');
   }
 
@@ -44,6 +47,7 @@ export class HomeAssistantService {
       );
       return data;
     } catch (error) {
+      this.logger.error(`Failed to check Home Assistant API: ${error.message}`, error.stack);
       throw new HttpException(
         error.response?.data?.message || 'Failed to check API status',
         error.response?.status || 500,
@@ -63,6 +67,7 @@ export class HomeAssistantService {
       const lightEntities = data.filter(this.isLightEntity);
       return lightEntities;
     } catch (error) {
+      this.logger.error(`Failed to fetch all lights: ${error.message}`, error.stack);
       throw new HttpException(
         error.response?.data?.message || 'Failed to fetch lights',
         error.response?.status || 500,
@@ -82,6 +87,7 @@ export class HomeAssistantService {
       );
       return data;
     } catch (error) {
+      this.logger.error(`Failed to fetch entity state for ${entityId}: ${error.message}`, error.stack);
       throw new HttpException(
         error.response?.data?.message || 'Failed to fetch entity state',
         error.response?.status || 500,
@@ -91,6 +97,7 @@ export class HomeAssistantService {
 
   async getLightState(entityId: string): Promise<HALightState> {
     if (!entityId.startsWith('light.')) {
+      this.logger.error(`Invalid light entity ID: ${entityId}`);
       throw new HttpException('Not a light entity', 400);
     }
     return this.getEntityState<HALightAttributes>(entityId);
@@ -114,6 +121,12 @@ export class HomeAssistantService {
       );
       return data;
     } catch (error) {
+      this.logger.error(`Failed to update entity state for ${entityId}: ${error.message}`, {
+        entityId,
+        state,
+        attributes,
+        error: error.stack,
+      });
       throw new HttpException(
         error.response?.data?.message || 'Failed to update entity state',
         error.response?.status || 500,
@@ -127,6 +140,7 @@ export class HomeAssistantService {
     attributes?: Partial<HALightAttributes>,
   ): Promise<HALightState> {
     if (!entityId.startsWith('light.')) {
+      this.logger.error(`Invalid light entity ID: ${entityId}`);
       throw new HttpException('Not a light entity', 400);
     }
     return this.updateEntityState<HALightAttributes>(
