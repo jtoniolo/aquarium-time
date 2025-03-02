@@ -20,30 +20,27 @@ interface LightDetailsDialogProps {
   light: Light;
 }
 
+type LightAttributes = {
+  friendly_name?: string;
+  ip_address?: string;
+  supported_color_modes?: string[];
+  min_color_temp_kelvin?: number;
+  max_color_temp_kelvin?: number;
+  effect_list?: string[];
+};
+
 export default function LightDetailsDialog({
   open,
   onClose,
   light,
 }: LightDetailsDialogProps) {
   const { entity_data: { attributes, state } } = light;
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'on':
-        return 'success';
-      case 'off':
-        return 'default';
-      case 'unavailable':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
+  const attrs = attributes as LightAttributes;
   
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        {attributes.friendly_name || light.entity_id}
+        {attrs.friendly_name || light.entity_id}
       </DialogTitle>
       <DialogContent>
         <List>
@@ -62,16 +59,16 @@ export default function LightDetailsDialog({
             />
           </ListItem>
           
-          {attributes.ip_address && (
+          {attrs.ip_address && (
             <ListItem>
               <ListItemText 
                 primary="IP Address"
-                secondary={attributes.ip_address.toString()}
+                secondary={attrs.ip_address}
               />
             </ListItem>
           )}
 
-          {attributes.supported_color_modes && (
+          {attrs.supported_color_modes && attrs.supported_color_modes.length > 0 && (
             <ListItem>
               <ListItemText 
                 primary="Supported Color Modes"
@@ -86,7 +83,7 @@ export default function LightDetailsDialog({
                       flexWrap: "wrap"
                     }}
                   >
-                    {attributes.supported_color_modes.map((mode) => (
+                    {attrs.supported_color_modes.map((mode) => (
                       <Chip 
                         key={mode} 
                         label={mode} 
@@ -99,16 +96,16 @@ export default function LightDetailsDialog({
             </ListItem>
           )}
 
-          {(attributes.min_color_temp_kelvin || attributes.max_color_temp_kelvin) && (
+          {(attrs.min_color_temp_kelvin || attrs.max_color_temp_kelvin) && (
             <ListItem>
               <ListItemText 
                 primary="Color Temperature Range"
-                secondary={`${attributes.min_color_temp_kelvin}K - ${attributes.max_color_temp_kelvin}K`}
+                secondary={`${attrs.min_color_temp_kelvin}K - ${attrs.max_color_temp_kelvin}K`}
               />
             </ListItem>
           )}
 
-          {attributes.effect_list && attributes.effect_list.length > 0 && (
+          {attrs.effect_list && attrs.effect_list.length > 0 && (
             <ListItem>
               <ListItemText 
                 primary="Available Effects"
@@ -123,7 +120,7 @@ export default function LightDetailsDialog({
                       flexWrap: "wrap"
                     }}
                   >
-                    {attributes.effect_list.map((effect) => (
+                    {attrs.effect_list.map((effect) => (
                       <Chip 
                         key={effect} 
                         label={effect} 
@@ -143,3 +140,16 @@ export default function LightDetailsDialog({
     </Dialog>
   );
 }
+
+const getStatusColor = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'on':
+      return 'success';
+    case 'off':
+      return 'default';
+    case 'unavailable':
+      return 'error';
+    default:
+      return 'default';
+  }
+};
