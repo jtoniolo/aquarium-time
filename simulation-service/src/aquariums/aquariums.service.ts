@@ -3,12 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Aquarium } from './aquarium.entity';
 import { Light } from '../lights/light.entity';
+import { HomeAssistantService } from '../homeassistant/homeassistant.service';
 
 @Injectable()
 export class AquariumsService {
   constructor(
     @InjectRepository(Aquarium)
     private aquariumRepository: Repository<Aquarium>,
+    private readonly haService: HomeAssistantService,
   ) {}
 
   async findAll(): Promise<Aquarium[]> {
@@ -18,11 +20,27 @@ export class AquariumsService {
       },
     });
 
-    // Transform the data to ensure lights are in the correct property
-    return aquariums.map((aquarium) => ({
-      ...aquarium,
-      lights: aquarium['__lights__'],
-    }));
+    // Transform the data to ensure lights are in the correct property and have current states
+    return Promise.all(
+      aquariums.map(async (aquarium) => {
+        const lights = await Promise.all(
+          aquarium['__lights__'].map(async (light: Light) => {
+            const currentState = await this.haService.getLightState(
+              light.entity_id,
+            );
+            return {
+              ...light,
+              entity_data: currentState,
+              last_updated: new Date(currentState.last_updated),
+            };
+          }),
+        );
+        return {
+          ...aquarium,
+          lights,
+        };
+      }),
+    );
   }
 
   async findOne(id: string): Promise<Aquarium> {
@@ -37,10 +55,24 @@ export class AquariumsService {
       throw new NotFoundException(`Aquarium with ID ${id} not found`);
     }
 
-    // Transform the data to ensure lights are in the correct property
+    // Get current states from Home Assistant for each light
+    const lights = await Promise.all(
+      aquarium['__lights__'].map(async (light: Light) => {
+        const currentState = await this.haService.getLightState(
+          light.entity_id,
+        );
+        return {
+          ...light,
+          entity_data: currentState,
+          last_updated: new Date(currentState.last_updated),
+        };
+      }),
+    );
+
+    // Transform the data to ensure lights are in the correct property with current states
     return {
       ...aquarium,
-      lights: aquarium['__lights__'],
+      lights,
     };
   }
 

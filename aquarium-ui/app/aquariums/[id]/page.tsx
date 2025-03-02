@@ -18,8 +18,10 @@ import {
   IconButton,
   Paper,
   TextField,
+  Chip,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import InfoIcon from "@mui/icons-material/Info";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LightbulbIcon from "@mui/icons-material/Lightbulb";
 import SaveIcon from "@mui/icons-material/Save";
@@ -38,6 +40,8 @@ import LightingConfigSection from "../../components/LightingConfigSection";
 import LightDistributionGraph from "../../components/LightDistributionGraph";
 import { SunConfig } from "../../types";
 import { createSelector } from "@reduxjs/toolkit";
+import LightDetailsDialog from "../../components/LightDetailsDialog";
+import type { Light } from "../../types";
 
 // Create memoized selectors
 const selectAquarium = createSelector(
@@ -55,6 +59,19 @@ const selectDistributionData = createSelector(
   ],
   (distributionData, id) => distributionData[id] || []
 );
+
+const getStatusColor = (status: string) => {
+  switch (status.toLowerCase()) {
+    case "on":
+      return "success";
+    case "off":
+      return "default";
+    case "unavailable":
+      return "error";
+    default:
+      return "default";
+  }
+};
 
 interface EditableFieldProps {
   value: string;
@@ -138,6 +155,7 @@ export default function AquariumDetailPage() {
   const [description, setDescription] = useState("");
   const [gallons, setGallons] = useState("");
   const [dimensions, setDimensions] = useState("");
+  const [selectedLight, setSelectedLight] = useState<Light | null>(null);
 
   // Use memoized selectors with the id from useParams
   const aquarium = useSelector((state: RootState) => selectAquarium(state, id));
@@ -334,9 +352,28 @@ export default function AquariumDetailPage() {
                         light.entity_data.attributes.friendly_name ||
                         light.entity_id
                       }
-                      secondary={`Status: ${light.entity_data.state}`}
+                      secondary={
+                        <Chip
+                          label={
+                            light.entity_data.state?.toString() || "Unknown"
+                          }
+                          size="small"
+                          color={getStatusColor(
+                            light.entity_data.state?.toString() || ""
+                          )}
+                          sx={{ mt: 1 }}
+                        />
+                      }
                     />
                     <ListItemSecondaryAction>
+                      <IconButton
+                        edge="end"
+                        aria-label="info"
+                        onClick={() => setSelectedLight(light)}
+                        sx={{ mr: 1 }}
+                      >
+                        <InfoIcon />
+                      </IconButton>
                       <IconButton
                         edge="end"
                         aria-label="delete"
@@ -406,6 +443,14 @@ export default function AquariumDetailPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {selectedLight && (
+        <LightDetailsDialog
+          open={Boolean(selectedLight)}
+          onClose={() => setSelectedLight(null)}
+          light={selectedLight}
+        />
+      )}
     </Box>
   );
 }

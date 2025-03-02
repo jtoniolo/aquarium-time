@@ -11,6 +11,7 @@ interface DistributionData {
   green: number;
   blue: number;
   white: number;
+  color_temp: number;
 }
 
 interface SunState {
