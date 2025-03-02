@@ -1,7 +1,7 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
-import type { Aquarium } from '../types';
-import { API_BASE_URL } from '../config';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import axios from "axios";
+import type { Aquarium } from "../types";
+import { API_BASE_URL } from "../config";
 
 interface AquariumsState {
   items: Aquarium[];
@@ -16,7 +16,7 @@ const initialState: AquariumsState = {
 };
 
 export const fetchAquariums = createAsyncThunk(
-  'aquariums/fetchAll',
+  "aquariums/fetchAll",
   async () => {
     const response = await axios.get<Aquarium[]>(`${API_BASE_URL}/aquariums`);
     return response.data;
@@ -24,15 +24,37 @@ export const fetchAquariums = createAsyncThunk(
 );
 
 export const createAquarium = createAsyncThunk(
-  'aquariums/create',
+  "aquariums/create",
   async (aquarium: Partial<Aquarium>) => {
-    const response = await axios.post<Aquarium>(`${API_BASE_URL}/aquariums`, aquarium);
+    const response = await axios.post<Aquarium>(
+      `${API_BASE_URL}/aquariums`,
+      aquarium
+    );
     return response.data;
   }
 );
 
+export const updateAquarium = createAsyncThunk(
+  "aquariums/update",
+  async (aquarium: Partial<Aquarium>) => {
+    const response = await axios.put<Aquarium>(
+      `${API_BASE_URL}/aquariums/${aquarium.id}`,
+      aquarium
+    );
+    return response.data;
+  }
+);
+
+export const deleteAquarium = createAsyncThunk(
+  "aquariums/delete",
+  async (id: string) => {
+    await axios.delete(`${API_BASE_URL}/aquariums/${id}`);
+    return id;
+  }
+);
+
 const aquariumsSlice = createSlice({
-  name: 'aquariums',
+  name: "aquariums",
   initialState,
   reducers: {},
   extraReducers: (builder) => {
@@ -47,10 +69,19 @@ const aquariumsSlice = createSlice({
       })
       .addCase(fetchAquariums.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to fetch aquariums';
+        state.error = action.error.message || "Failed to fetch aquariums";
       })
       .addCase(createAquarium.fulfilled, (state, action) => {
         state.items.push(action.payload);
+      })
+      .addCase(updateAquarium.fulfilled, (state, action) => {
+        const index = state.items.findIndex((a) => a.id === action.payload.id);
+        if (index !== -1) {
+          state.items[index] = action.payload;
+        }
+      })
+      .addCase(deleteAquarium.fulfilled, (state, action) => {
+        state.items = state.items.filter((a) => a.id !== action.payload);
       });
   },
 });

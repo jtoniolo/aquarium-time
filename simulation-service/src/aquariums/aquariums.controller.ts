@@ -6,25 +6,46 @@ import {
   Delete,
   Body,
   Param,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { AquariumsService } from './aquariums.service';
 import { Aquarium } from './aquarium.entity';
+import { SunService } from '../sun/sun.service';
 
 @ApiTags('aquariums')
 @Controller('aquariums')
 export class AquariumsController {
-  constructor(private readonly aquariumsService: AquariumsService) {}
+  constructor(
+    private readonly aquariumsService: AquariumsService,
+    @Inject(forwardRef(() => SunService))
+    private readonly sunService: SunService,
+  ) {}
 
   @ApiOperation({ summary: 'Get all aquariums' })
   @ApiResponse({
     status: 200,
     description: 'List of all aquariums with their lights',
-    type: Aquarium,
-    isArray: true,
+    schema: {
+      type: 'array',
+      items: {
+        allOf: [
+          { $ref: '#/components/schemas/Aquarium' },
+          {
+            properties: {
+              lights: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/Light' },
+              },
+            },
+          },
+        ],
+      },
+    },
   })
   @Get()
-  findAll(): Promise<Aquarium[]> {
+  async findAll(): Promise<Aquarium[]> {
     return this.aquariumsService.findAll();
   }
 
@@ -61,11 +82,18 @@ export class AquariumsController {
   })
   @ApiResponse({ status: 404, description: 'Aquarium not found' })
   @Put(':id')
-  update(
+  async update(
     @Param('id') id: string,
     @Body() aquarium: Partial<Aquarium>,
   ): Promise<Aquarium> {
-    return this.aquariumsService.update(id, aquarium);
+    const result = await this.aquariumsService.update(id, aquarium);
+
+    // If lighting config was updated, trigger immediate light update
+    if (aquarium.lightingConfig !== undefined) {
+      await this.sunService.updateAquariumLights(id);
+    }
+
+    return result;
   }
 
   @ApiOperation({ summary: 'Delete an aquarium' })

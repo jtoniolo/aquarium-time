@@ -1,0 +1,30 @@
+alias: aquarium lights
+description: ""
+mode: single
+triggers:
+  - trigger: mqtt
+    topic: aquarium/dev/lights
+conditions: []
+actions:
+  - repeat:
+      sequence:
+        - if:
+            - condition: template
+              value_template: "{{ repeat.item.on }}"
+          then:
+            - action: light.turn_on
+              metadata: {}
+              data:
+                brightness_pct: "{{ repeat.item.brightness }}"
+                rgbw_color:
+                  - "{{ repeat.item.rgbw.red }}"
+                  - "{{ repeat.item.rgbw.green }}"
+                  - "{{ repeat.item.rgbw.blue }}"
+                  - "{{ repeat.item.rgbw.white }}"
+              target:
+                entity_id: "{{ repeat.item.entity_id }}"
+          else:
+            - action: light.turn_off
+              metadata: {}
+              data: {}
+      for_each: "{{ trigger.payload_json.lights }}"

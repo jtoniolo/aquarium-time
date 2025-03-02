@@ -1,47 +1,65 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import * as mqtt from 'mqtt';
 
 // This service is responsible for handling MQTT operations
 @Injectable()
 export class MqttService {
-  // Logger instance for logging
-  private readonly logger = new Logger(MqttService.name);
-
   // MQTT client instance
-  private mqttClient: mqtt.MqttClient | undefined;
+  private client: mqtt.MqttClient | undefined;
 
-  constructor() {
-    if (!process.env.MQTT_BROKER) {
-      this.logger.warn('MQTT is disabled.');
+  constructor(@Inject(Logger) private readonly logger: Logger) {
+    const broker = process.env.MQTT_BROKER;
+    this.logger.log('MqttService constructor');
+    this.logger.debug('Environment variables:', {
+      MQTT_BROKER: process.env.MQTT_BROKER,
+      MQTT_TOPIC: process.env.MQTT_TOPIC,
+      MQTT_LIGHT_TOPIC: process.env.MQTT_LIGHT_TOPIC,
+    });
+
+    if (!broker) {
+      this.logger.warn(
+        'No MQTT broker configured, MQTT functionality will be disabled',
+      );
       return;
     }
-    // Log the MQTT broker URL
-    this.logger.log(`Connecting to MQTT broker: ${process.env.MQTT_BROKER}`);
 
-    // Connect to the MQTT broker
-    this.mqttClient = mqtt.connect(process.env.MQTT_BROKER); // Replace with your MQTT broker URL
+    this.logger.log(`Connecting to MQTT broker: ${broker}`);
 
-    // Log when the MQTT client is connected to the broker
-    this.mqttClient.on('connect', () => {
-      this.logger.log('Connected to MQTT broker');
-    });
+    try {
+      this.client = mqtt.connect(broker);
 
-    // Log when there is an error with the MQTT client
-    this.mqttClient.on('error', (error) => {
-      this.logger.error(`MQTT Error: ${error.message}`);
-    });
+      this.client.on('connect', () => {
+        this.logger.log('Connected to MQTT broker');
+      });
+
+      this.client.on('error', (error) => {
+        this.logger.error('MQTT client error:', error);
+      });
+
+      this.client.on('close', () => {
+        this.logger.warn('MQTT client connection closed');
+      });
+
+      this.client.on('end', () => {
+        this.logger.warn('MQTT client connection ended');
+      });
+    } catch (error) {
+      this.logger.error('Failed to create MQTT client:', error);
+    }
   }
 
   // This method publishes a message to a specific topic
   publish(topic: string, message: string) {
-    this.mqttClient?.publish(topic, message, (error) => {
-      // Log when there is an error publishing the message
-      if (error) {
-        this.logger.error(`Failed to publish message: ${error.message}`);
-      } else {
-        // Log when the message is successfully published
-        this.logger.log(`Message published to topic ${topic}`);
-      }
-    });
+    if (!this.client) {
+      this.logger.warn('MQTT client not initialized, skipping publish');
+      return;
+    }
+
+    this.logger.debug(`Publishing to ${topic}:`, message);
+    try {
+      this.client.publish(topic, message);
+    } catch (error) {
+      this.logger.error(`Failed to publish to ${topic}:`, error);
+    }
   }
 }

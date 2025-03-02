@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  simulation:
+    image: ghcr.io/jtoniolo/aquarium-time-simulation:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - /home/jeff/repo/aquarium-time/data:/app/data
+    environment:
+      - MQTT_BROKER=${MQTT_BROKER:-mqtt://10.0.6.62:1883}
+      - MQTT_TOPIC=${MQTT_TOPIC:-aquarium/dev/sun}
+      - MQTT_LIGHT_TOPIC=${MQTT_LIGHT_TOPIC:-aquarium/dev/lights}
+      - HOMEASSISTANT_TOKEN=${HOMEASSISTANT_TOKEN}
+
+  ui:
+    image: ghcr.io/jtoniolo/aquarium-time-ui:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${API_URL:-http://localhost:3000}

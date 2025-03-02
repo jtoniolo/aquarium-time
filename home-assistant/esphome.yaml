@@ -1,0 +1,43 @@
+esphome:
+  name: nano-aquarium
+  friendly_name: Nano Aquarium
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "KydeEoiK0G/wV0BpDMS0utwNzoix/QraszOs2x2NPLQ="
+
+ota:
+  - platform: esphome
+    password: "938f38bd1014705fe52e7b4a4b991647"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Nano-Aquarium Fallback Hotspot"
+    password: "Dik81CyeQpyX"
+
+captive_portal:
+
+output:
+  - platform: ledc
+    pin: GPIO25
+    id: light_sw
+    frequency: 1000 Hz
+
+light:
+  - platform: monochromatic
+    name: "Light"
+    output: light_sw
+    gamma_correct: 1.5

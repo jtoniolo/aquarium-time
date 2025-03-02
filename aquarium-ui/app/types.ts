@@ -22,9 +22,16 @@ interface LightAttributes {
   hue_scenes?: string[];
   hue_type?: string;
   lights?: string[];
-  dynamics?: boolean | 'none';
+  dynamics?: boolean | "none";
   icon?: string;
-  [key: string]: string | number | boolean | null | undefined | Array<string | number> | unknown;
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | null
+    | undefined
+    | Array<string | number>
+    | unknown;
 }
 
 // Home Assistant light context
@@ -56,6 +63,25 @@ export interface Light {
   last_updated?: Date;
 }
 
+// Shared types between frontend and backend
+export interface Time {
+  hour: number;
+  minute: number;
+  second: number;
+}
+
+export interface SunConfig {
+  sunRiseTime?: Time;
+  sunDuration?: Time;
+  highLightRatio?: number;
+  sunriseOffset?: number;
+  durationMultiplier?: number;
+  emulateCloudCover?: boolean;
+  maxIntensity?: number;
+}
+
+export type TimeOfDay = "sunrise" | "day" | "sunset" | "night";
+
 export interface Aquarium {
   id: string;
   name: string;
@@ -63,4 +89,5 @@ export interface Aquarium {
   gallons?: number;
   dimensions?: string;
   lights: Light[];
+  lightingConfig?: SunConfig;
 }

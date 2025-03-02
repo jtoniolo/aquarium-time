@@ -1,11 +1,28 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { SunService } from './sun.service';
-import { MqttModule } from 'src/mqtt/mqtt.module';
 import { SunController } from './sun.controller';
+import { MqttModule } from '../mqtt/mqtt.module';
+import { SunGateway } from './sun.gateway';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Aquarium } from '../aquariums/aquarium.entity';
+import { AquariumsModule } from '../aquariums/aquariums.module';
+import { Logger } from '@nestjs/common';
 
 @Module({
-  imports: [MqttModule],
+  imports: [
+    MqttModule,
+    TypeOrmModule.forFeature([Aquarium]),
+    forwardRef(() => AquariumsModule), // Use forwardRef to handle circular dependency
+  ],
+  providers: [
+    SunService,
+    SunGateway,
+    {
+      provide: Logger,
+      useValue: new Logger('SunService'),
+    },
+  ],
   controllers: [SunController],
-  providers: [SunService],
+  exports: [SunService], // Export SunService so it can be used by other modules
 })
 export class SunModule {}

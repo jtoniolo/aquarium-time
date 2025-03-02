@@ -46,6 +46,14 @@ export const assignLight = createAsyncThunk(
   }
 );
 
+export const removeLight = createAsyncThunk(
+  "lights/remove",
+  async (entityId: string) => {
+    await axios.delete(`${API_BASE_URL}/lights/${entityId}`);
+    return entityId;
+  }
+);
+
 const lightsSlice = createSlice({
   name: "lights",
   initialState,
@@ -81,6 +89,11 @@ const lightsSlice = createSlice({
         // Remove the light from discoveredLights
         state.discoveredLights = state.discoveredLights.filter(
           (light) => light.entity_id !== action.payload.entity_id
+        );
+      })
+      .addCase(removeLight.fulfilled, (state, action) => {
+        state.items = state.items.filter(
+          (light) => light.entity_id !== action.payload
         );
       });
   },

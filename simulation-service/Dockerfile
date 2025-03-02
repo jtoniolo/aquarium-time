@@ -1,18 +1,22 @@
-# ---- Build ----
-FROM node:20-alpine AS build
-WORKDIR /usr/src/app
+# Build Service
+FROM node:20-alpine AS service-build
+WORKDIR /service
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 COPY . .
 RUN yarn build
 
-# ---- Serve ----
-FROM node:20-alpine AS serve
-WORKDIR /usr/src/app
-COPY --from=build /usr/src/app/dist ./dist
-COPY --from=build /usr/src/app/node_modules ./node_modules
-#COPY package.json yarn.lock ./
-#RUN yarn install --production --frozen-lockfile
+# Production image
+FROM node:20-alpine as serve
+WORKDIR /app
+# Copy service files
+COPY --from=service-build /service/dist ./dist
+COPY --from=service-build /service/node_modules ./node_modules
 
+RUN mkdir -p /app/data
+
+ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["node", "dist/main"]
+
+VOLUME ["/app/data"]
+CMD ["node", "--trace-warnings", "--unhandled-rejections=strict", "dist/main"]

@@ -1,66 +1,143 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { RGBW, SimulatedSun, SunConfig, Time } from './sun.model';
+import {
+  RGBW,
+  SimulatedSun,
+  EnhancedSimulatedSun,
+  SunConfig,
+  Time,
+  DistribuitonData,
+} from './sun.model';
 import { MqttService } from 'src/mqtt/mqtt.service';
+import { SunGateway } from 'src/sun/sun.gateway';
+import { AquariumsService } from '../aquariums/aquariums.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Aquarium } from '../aquariums/aquarium.entity';
+import { ConfigService } from '@nestjs/config';
 
 // This is a service class for handling sun related operations
 @Injectable()
 export class SunService {
-  // Logger instance for logging
-  private readonly logger = new Logger(SunService.name);
+  private latestSimulation: SimulatedSun | null = null;
+  private latestEnhancedSimulation: EnhancedSimulatedSun | null = null;
 
-  // MqttService is injected via constructor
-  constructor(private mqtt: MqttService) {}
+  // Default sun configuration
+  private readonly defaultSettings: SunConfig = {
+    sunRiseTime: {
+      hour: 6,
+      minute: 0,
+      second: 0,
+    },
+    sunDuration: {
+      hour: 16,
+      minute: 0,
+      second: 0,
+    },
+    highLightRatio: 1 / 3,
+    sunriseOffset: 0,
+    durationMultiplier: 1,
+  };
+
+  // MqttService, SunGateway, and AquariumsService are injected via constructor
+  constructor(
+    private mqtt: MqttService,
+    private readonly sunGateway: SunGateway,
+    @Inject(forwardRef(() => AquariumsService))
+    private readonly aquariumsService: AquariumsService,
+    private readonly configService: ConfigService,
+    @Inject(Logger) private readonly logger: Logger,
+  ) {
+    this.logger.log('SunService initialized');
+    this.handleCron().catch((err) =>
+      this.logger.error('Initial cron failed:', err),
+    );
+  }
 
   // This method is scheduled to run every minute
   @Cron(CronExpression.EVERY_MINUTE)
-  handleCron() {
-    // Logs that the cron job is running
-    this.logger.log('cron job running');
-    this.logger.debug('Called when the current second is 0');
-
-    // Converts the current date to a specific timezone
+  async handleCron() {
+    this.logger.debug('Running cron');
     const date = this.convertUtcToTimezone(new Date());
 
-    // Simulates the sun's brightness and color at a given location and time
-    const simulatedSun = this.getSolarSimulation(date, {
-      sunRiseTime: {
-        hour: 6,
-        minute: 0,
-        second: 0,
-      },
-      sunDuration: {
-        hour: 16,
-        minute: 0,
-        second: 0,
-      },
-      highLightRatio: 1 / 3,
-      sunriseOffset: 0,
-      durationMultiplier: 1,
-    });
+    // Generate default simulation for MQTT (maintaining backward compatibility)
+    const simulatedSun = this.getSolarSimulation(date, this.defaultSettings);
+    const enhanced = this.calculateSunSimulation(date, this.defaultSettings);
 
-    // Publishes the simulated sun data to a MQTT topic
-    this.mqtt.publish(process.env.MQTT_TOPIC, JSON.stringify(simulatedSun));
+    // Cache the latest simulation (both basic and enhanced)
+    this.latestSimulation = simulatedSun;
+    this.latestEnhancedSimulation = enhanced;
+
+    // Emit default simulation through MQTT (maintaining backward compatibility)
+    this.mqtt.publish(
+      process.env.MQTT_TOPIC,
+      JSON.stringify(this.latestSimulation),
+    );
+
+    // Get all aquariums and their lights
+    const aquariums = await this.aquariumsService.findAll();
+
+    // Create array to hold all light states
+    const allLights = [];
+
+    // For each aquarium, calculate its sun simulation and collect light states
+    for (const aquarium of aquariums) {
+      const aquariumSimulation = this.getSolarSimulation(
+        date,
+        aquarium.lightingConfig || this.defaultSettings,
+      );
+
+      const lights = await aquarium.lights;
+
+      // For each light in the aquarium, prepare its state
+      for (const light of lights) {
+        allLights.push({
+          entity_id: light.entity_id,
+          on: aquariumSimulation.on,
+          brightness: aquariumSimulation.brightness,
+          rgbw: {
+            red: aquariumSimulation.rgbw.red,
+            green: aquariumSimulation.rgbw.green,
+            blue: aquariumSimulation.rgbw.blue,
+            white: aquariumSimulation.rgbw.white,
+          },
+          color_temp: aquariumSimulation.rgbw.color_temp,
+        });
+      }
+    }
+
+    // Send a single MQTT message with all light states
+    const message = {
+      lights: allLights,
+    };
+
+    this.mqtt.publish(process.env.MQTT_LIGHT_TOPIC, JSON.stringify(message));
+    this.sunGateway.emitSunUpdate(this.latestEnhancedSimulation);
   }
 
-  getDistributionData(): DistribuitonData[] {
-    const data: DistribuitonData[] = [];
+  getLatestSimulation(): SimulatedSun | null {
+    return this.latestSimulation;
+  }
 
-    const settings: SunConfig = {
-      sunRiseTime: {
-        hour: 6,
-        minute: 0,
-        second: 0,
-      },
-      sunDuration: {
-        hour: 16,
-        minute: 0,
-        second: 0,
-      },
-      highLightRatio: 1 / 3,
-      sunriseOffset: 0,
-      durationMultiplier: 1,
-    };
+  getLatestEnhancedSimulation(): EnhancedSimulatedSun | null {
+    return this.latestEnhancedSimulation;
+  }
+
+  // New method to get simulation for a specific aquarium
+  getAquariumSimulation(date: Date, config?: SunConfig): EnhancedSimulatedSun {
+    return this.calculateSunSimulation(date, config || this.defaultSettings);
+  }
+
+  // Modified to accept optional config parameter
+  getDistributionData(config?: SunConfig): DistribuitonData[] {
+    const data: DistribuitonData[] = [];
+    const settings = config || this.defaultSettings;
 
     for (
       let minute = settings.sunRiseTime.hour * 60;
@@ -68,17 +145,22 @@ export class SunService {
       minute += 10
     ) {
       const time = new Date();
-      time.setHours(0, minute, 0, 0); // Set the time to the current minute of the day
+      time.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
       const solarSimulation = this.getSolarSimulation(time, settings);
 
       data.push({
-        time: time.toLocaleString(),
+        time: time.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }),
         brightness: solarSimulation.brightness,
         red: solarSimulation.rgbw.red,
         green: solarSimulation.rgbw.green,
         blue: solarSimulation.rgbw.blue,
         white: solarSimulation.rgbw.white,
-      }); // Use toFixed to limit the number of decimal places
+        color_temp: solarSimulation.rgbw.color_temp,
+      });
     }
     return data;
   }
@@ -87,40 +169,56 @@ export class SunService {
   private convertUtcToTimezone(date: Date): Date {
     const timezone = process.env.TZ ?? 'America/Toronto';
     const utcDate = new Date(date.toUTCString());
-
-    this.logger.log(
-      `Date Conversion: ${date}; UTC Date: ${utcDate}; Timezone: ${timezone}; Converted Date: ${utcDate.toLocaleString('en-US', { timeZone: timezone })}`,
-    );
     return new Date(utcDate.toLocaleString('en-US', { timeZone: timezone }));
   }
 
   /**
-   * This method simulates the sun's brightness and color at a given location and time.
-   * It's not meant to be an accurate simulation, but rather a close enough to use for Aquarium lighting.
-   * Brightness is a value between 0 and 100, in percent. 0 is twilight, 100 is full sun.
-   * RGBW values are between 0 and 255. W = 1 to 5 is twilight, W = 255 is full sun.
-   *
-   * @param time The time to simulate the sun's position.
-   * @param settings The settings to use for the simulation.
+   * Core logic for sun simulation calculation that returns a complete EnhancedSimulatedSun
    */
-  private getSolarSimulation(time: Date, settings: SunConfig): SimulatedSun {
-    // Create a new instance of SimulatedSun
-    const simulatedSun = new SimulatedSun();
-
-    // Convert the current time and sunrise time to seconds
+  private calculateSunSimulation(
+    time: Date,
+    settings: SunConfig,
+  ): EnhancedSimulatedSun {
     const timeInSeconds = this.getTimeInSeconds(Time.fromDate(time));
     const sunriseTimeInSeconds = this.getTimeInSeconds(settings.sunRiseTime);
-
-    // Convert the duration of the sun to seconds
     const durationInSeconds = this.getTimeInSeconds(settings.sunDuration);
+    const totalSeconds = durationInSeconds;
+    const middleDuration = totalSeconds / 3;
+    const otherDuration = (totalSeconds - middleDuration) / 2;
+    const firstPartEnd = sunriseTimeInSeconds + otherDuration;
+    const secondPartEnd = firstPartEnd + middleDuration;
+
+    const enhanced = new EnhancedSimulatedSun();
 
     // If the time is outside of the sunrise time and duration, turn off the simulated sun
-    simulatedSun.on =
+    enhanced.on =
       timeInSeconds >= sunriseTimeInSeconds &&
       timeInSeconds <= sunriseTimeInSeconds + durationInSeconds;
 
-    // If the simulated sun is off, return the simulatedSun instance
-    if (!simulatedSun.on) return simulatedSun;
+    // If the simulated sun is off, return early with defaults
+    if (!enhanced.on) {
+      enhanced.brightness = 0;
+      enhanced.rgbw = new RGBW();
+      enhanced.timeOfDay =
+        timeInSeconds < sunriseTimeInSeconds ? 'night' : 'night';
+
+      // Calculate night cycle percentage
+      const sunsetTimeInSeconds = sunriseTimeInSeconds + durationInSeconds;
+
+      if (timeInSeconds < sunriseTimeInSeconds) {
+        // Before sunrise - calculate how close we are to sunrise
+        const timeUntilSunrise = sunriseTimeInSeconds - timeInSeconds;
+        const totalNightDuration = 24 * 3600 - durationInSeconds; // Total night duration
+        enhanced.cyclePercentage =
+          ((totalNightDuration - timeUntilSunrise) / totalNightDuration) * 100;
+      } else {
+        // After sunset - calculate progress through the night
+        const timeFromSunset = timeInSeconds - sunsetTimeInSeconds;
+        const totalNightDuration = 24 * 3600 - durationInSeconds;
+        enhanced.cyclePercentage = (timeFromSunset / totalNightDuration) * 100;
+      }
+      return enhanced;
+    }
 
     // Calculate the brightness factor based on the time since sunrise
     const brightnessFactor = this.getBrightnessFactor(
@@ -128,22 +226,73 @@ export class SunService {
       durationInSeconds,
       timeInSeconds,
       settings.highLightRatio,
+      settings.maxIntensity,
     );
 
     // Calculate the brightness and RGBW values based on the time since sunrise
-    const brightness = Math.round((brightnessFactor / 255) * 100) || 1; // brightness needs to be at least 1 for the lights to come on
-    const rgbw = this.getRGBW(
+    enhanced.brightness = Math.round((brightnessFactor / 255) * 100) || 1;
+
+    // Calculate color temperature progression
+    const MIN_TEMP = 2700;
+    const MAX_TEMP = 6500;
+    let colorTemp: number;
+
+    if (timeInSeconds <= firstPartEnd) {
+      // During sunrise: progress from warm to cool
+      const progress = (timeInSeconds - sunriseTimeInSeconds) / otherDuration;
+      colorTemp = MIN_TEMP + (MAX_TEMP - MIN_TEMP) * progress;
+    } else if (timeInSeconds <= secondPartEnd) {
+      // Middle of day: stay at cool temperature
+      colorTemp = MAX_TEMP;
+    } else {
+      // During sunset: progress from cool to warm
+      const progress = 1 - (timeInSeconds - secondPartEnd) / otherDuration;
+      colorTemp = MIN_TEMP + (MAX_TEMP - MIN_TEMP) * progress;
+    }
+
+    enhanced.rgbw = this.getRGBW(
       brightnessFactor,
       timeInSeconds,
       sunriseTimeInSeconds,
-      durationInSeconds,
+      settings.sunDuration.hour + settings.sunDuration.minute / 60,
+      Math.round(colorTemp),
     );
 
-    // Assign the calculated brightness and RGBW values to the simulatedSun instance
-    simulatedSun.brightness = Math.round(brightness); // brightness needs to be an integer between 0 and 100.
-    simulatedSun.rgbw = rgbw;
+    // Calculate time of day and cycle percentage for daytime
+    const TRANSITION_DURATION = 3600; // 1 hour transition periods
+    const sunsetTimeInSeconds = sunriseTimeInSeconds + durationInSeconds;
+    const sunriseEnd = sunriseTimeInSeconds + TRANSITION_DURATION;
+    const sunsetStart = sunsetTimeInSeconds - TRANSITION_DURATION;
 
-    // Return the simulatedSun instance
+    if (timeInSeconds <= sunriseEnd) {
+      enhanced.timeOfDay = 'sunrise';
+      enhanced.cyclePercentage = Math.min(
+        ((timeInSeconds - sunriseTimeInSeconds) / TRANSITION_DURATION) * 100,
+        100,
+      );
+    } else if (timeInSeconds >= sunsetStart) {
+      enhanced.timeOfDay = 'sunset';
+      enhanced.cyclePercentage = Math.min(
+        ((timeInSeconds - sunsetStart) / TRANSITION_DURATION) * 100,
+        100,
+      );
+    } else {
+      enhanced.timeOfDay = 'day';
+      enhanced.cyclePercentage =
+        ((timeInSeconds - sunriseEnd) / (sunsetStart - sunriseEnd)) * 100;
+    }
+
+    return enhanced;
+  }
+
+  private getSolarSimulation(time: Date, settings: SunConfig): SimulatedSun {
+    const enhanced = this.calculateSunSimulation(time, settings);
+    const simulatedSun = new SimulatedSun();
+
+    // Only copy the base SimulatedSun properties
+    simulatedSun.on = enhanced.on;
+    simulatedSun.brightness = enhanced.brightness;
+    simulatedSun.rgbw = enhanced.rgbw;
 
     return simulatedSun;
   }
@@ -153,6 +302,7 @@ export class SunService {
     duration: number,
     currentTime: number,
     middleFactor: number = 1 / 3,
+    maxIntensity: number = 100,
   ): number {
     const totalSeconds = duration;
     const middleDuration = totalSeconds * middleFactor;
@@ -163,50 +313,68 @@ export class SunService {
 
     let x;
     let brightness;
+    const intensityFactor = maxIntensity / 100;
+    const baseMaxBrightness = 255;
+    const middayExtra = baseMaxBrightness - baseMaxBrightness * middleFactor;
+    const scaledMiddayExtra = middayExtra * intensityFactor;
 
     if (currentTime <= firstPartEnd) {
-      // First part of the day, use cubic function
+      // First part of the day, use cubic function (sunrise)
       x = (currentTime - startTime) / otherDuration;
-      brightness = Math.pow(x, 3) * (255 * middleFactor);
+      brightness = Math.pow(x, 3) * (baseMaxBrightness * middleFactor);
     } else if (currentTime <= secondPartEnd) {
-      // Middle part of the day, use parabolic function
+      // Middle part of the day, use parabolic function with reduced height based on maxIntensity
       x = (2 * (currentTime - firstPartEnd)) / middleDuration - 1;
       brightness =
-        (1 - Math.pow(x, 2)) * (255 - 255 * middleFactor) + 255 * middleFactor;
+        (1 - Math.pow(x, 2)) * scaledMiddayExtra +
+        baseMaxBrightness * middleFactor;
     } else {
-      // Last part of the day, use mirror of cubic function
+      // Last part of the day, use mirror of cubic function (sunset)
       x = 1 - (currentTime - secondPartEnd) / otherDuration;
-      brightness = Math.pow(x, 3) * (255 * middleFactor);
+      brightness = Math.pow(x, 3) * (baseMaxBrightness * middleFactor);
     }
 
     const factor = Math.max(Math.min(Math.round(brightness), 255), 0);
-
     return factor;
   }
 
-  getRGBW(brightnessFactor, currentTime, startTime, duration) {
+  getRGBW(
+    brightnessFactor,
+    currentTime,
+    startTime,
+    duration,
+    colorTemp = 6500,
+  ) {
     const rgbw = new RGBW();
-
     const totalSeconds = duration * 3600;
-    const middleDuration = totalSeconds / 3; // middle third of the day
+    const middleDuration = totalSeconds / 3;
     const otherDuration = (totalSeconds - middleDuration) / 2;
 
     const firstPartEnd = startTime + otherDuration;
     const secondPartEnd = firstPartEnd + middleDuration;
 
-    let red, green, blue;
+    // Base red value stays consistent with brightness factor
+    const red = brightnessFactor;
+    let green, blue;
 
-    if (currentTime <= firstPartEnd || currentTime > secondPartEnd) {
-      // Morning or evening, more red/orange
-      red = brightnessFactor;
-      green = (200 / 255) * brightnessFactor;
-      blue = (50 / 255) * brightnessFactor;
-    } else {
-      // Middle of the day, normal color
-      red = brightnessFactor;
+    if (currentTime <= firstPartEnd) {
+      const progress = (currentTime - startTime) / otherDuration;
+      const easedProgress = Math.pow(progress, 2);
+      green = brightnessFactor * easedProgress;
+      blue = brightnessFactor * Math.pow(progress, 3);
+    } else if (currentTime <= secondPartEnd) {
       green = brightnessFactor;
       blue = brightnessFactor;
+    } else {
+      const progress = 1 - (currentTime - secondPartEnd) / otherDuration;
+      const easedProgress = Math.pow(progress, 2);
+      green = brightnessFactor * easedProgress;
+      blue = brightnessFactor * Math.pow(progress, 3);
     }
+
+    // Ensure we maintain minimum color values for visual interest
+    green = Math.max(green, brightnessFactor * 0.15); // 15% minimum green
+    blue = Math.max(blue, brightnessFactor * 0.1); // 10% minimum blue
 
     const white = brightnessFactor;
 
@@ -214,6 +382,7 @@ export class SunService {
     rgbw.green = Math.round(green);
     rgbw.blue = Math.round(blue);
     rgbw.white = Math.round(white);
+    rgbw.color_temp = colorTemp;
 
     return rgbw;
   }
@@ -294,15 +463,47 @@ export class SunService {
     // Convert the time to seconds
     return time.hour * 3600 + time.minute * 60 + time.second;
   }
-}
 
-export interface DistribuitonData {
-  time: string;
-  brightness: number;
-  red: number;
-  green: number;
-  blue: number;
-  white: number;
+  private async sendLightStates(aquarium: Aquarium, date: Date = new Date()) {
+    const aquariumSimulation = this.getSolarSimulation(
+      date,
+      aquarium.lightingConfig || this.defaultSettings,
+    );
+
+    const lights = await aquarium.lights;
+    const lightStates = lights.map((light) => ({
+      entity_id: light.entity_id,
+      on: aquariumSimulation.on,
+      brightness: aquariumSimulation.brightness,
+      rgbw: {
+        red: aquariumSimulation.rgbw.red,
+        green: aquariumSimulation.rgbw.green,
+        blue: aquariumSimulation.rgbw.blue,
+        white: aquariumSimulation.rgbw.white,
+      },
+      color_temp: aquariumSimulation.rgbw.color_temp,
+    }));
+
+    if (lightStates.length > 0) {
+      const message = {
+        lights: lightStates,
+      };
+      this.mqtt.publish(process.env.MQTT_LIGHT_TOPIC, JSON.stringify(message));
+    }
+  }
+
+  @InjectRepository(Aquarium)
+  private readonly aquariumRepository: Repository<Aquarium>;
+
+  async updateAquariumLights(aquariumId: string) {
+    const aquarium = await this.aquariumRepository.findOneBy({
+      id: aquariumId,
+    });
+    if (!aquarium) {
+      throw new NotFoundException(`Aquarium with ID ${aquariumId} not found`);
+    }
+    await this.sendLightStates(aquarium);
+  }
 }
 
 /***
