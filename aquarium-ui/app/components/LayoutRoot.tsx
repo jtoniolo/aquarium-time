@@ -1,6 +1,5 @@
 "use client";
 
-import { Container } from "@mui/material";
 import { ReactNode } from "react";
 import StoreProvider from "../StoreProvider";
 import ThemeRegistry from "../ThemeRegistry";

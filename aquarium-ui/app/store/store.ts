@@ -1,16 +1,8 @@
 import { configureStore } from "@reduxjs/toolkit";
-import aquariumsReducer, {
-  type AquariumsState,
-} from "@/app/store/aquariumsSlice";
-import lightsReducer, { type LightsState } from "@/app/store/lightsSlice";
-import sunReducer, { type SunState } from "@/app/store/sunSlice";
+import aquariumsReducer from "@/app/store/aquariumsSlice";
+import lightsReducer from "@/app/store/lightsSlice";
+import sunReducer from "@/app/store/sunSlice";
 import configReducer from "./configSlice";
-
-interface AppState {
-  aquariums: AquariumsState;
-  lights: LightsState;
-  sun: SunState;
-}
 
 export const store = configureStore({
   reducer: {
