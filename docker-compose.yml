@@ -18,5 +18,7 @@ services:
     image: ghcr.io/jtoniolo/aquarium-time-ui:latest
     ports:
       - "3001:3000"
+    volumes:
+      - ./aquarium-ui/public/config:/app/public/config
     environment:
       - NEXT_PUBLIC_API_URL=${API_URL:-http://localhost:3000}

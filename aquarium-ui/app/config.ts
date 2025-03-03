@@ -1,6 +1,15 @@
-import getConfig from "next/config";
+let API_BASE_URL = "http://localhost:3000";
 
-const { publicRuntimeConfig } = getConfig() || { publicRuntimeConfig: {} };
+// Load config from API on the client side
+if (typeof window !== "undefined") {
+  fetch("/api/config")
+    .then((response) => response.json())
+    .then((config) => {
+      API_BASE_URL = config.API_BASE_URL;
+    })
+    .catch((error) => {
+      console.error("Failed to load config:", error);
+    });
+}
 
-export const API_BASE_URL =
-  publicRuntimeConfig.apiUrl || "http://localhost:3000";
+export { API_BASE_URL };
