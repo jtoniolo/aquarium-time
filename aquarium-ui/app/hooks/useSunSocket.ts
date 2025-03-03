@@ -1,12 +1,8 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import io from "socket.io-client";
-import { API_BASE_URL } from "../config";
 import { updateFromSocket } from "../store/sunSlice";
 import type { AppDispatch, RootState } from "../store/store";
-
-// Remove the /api prefix for WebSocket connections
-const SOCKET_URL = API_BASE_URL.replace("/api", "");
 
 export interface SunUpdate {
   on: boolean;
@@ -24,9 +20,15 @@ export interface SunUpdate {
 export function useSunSocket() {
   const dispatch = useDispatch<AppDispatch>();
   const sunData = useSelector((state: RootState) => state.sun.current);
+  const apiUrl = useSelector((state: RootState) => state.config.API_BASE_URL);
 
   useEffect(() => {
-    const socket = io(SOCKET_URL);
+    // Only connect when we have a valid API URL
+    if (!apiUrl) return;
+
+    // Remove the /api prefix for WebSocket connections
+    const socketUrl = apiUrl.replace("/api", "");
+    const socket = io(socketUrl);
 
     socket.on("connect", () => {
       console.log("Connected to sun socket");
@@ -43,7 +45,7 @@ export function useSunSocket() {
     return () => {
       socket.disconnect();
     };
-  }, [dispatch]);
+  }, [dispatch, apiUrl]); // Re-connect when API URL changes
 
   return sunData;
 }
