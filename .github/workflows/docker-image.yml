@@ -27,12 +27,14 @@ jobs:
         uses: docker/setup-buildx-action@v1
 
       - name: Build simulation service (validation)
+        if: contains(github.event.pull_request.changed_files, 'simulation-service/')
         uses: docker/build-push-action@v5
         with:
           context: ./simulation-service
           push: false
 
       - name: Build UI (validation)
+        if: contains(github.event.pull_request.changed_files, 'aquarium-ui/')
         uses: docker/build-push-action@v5
         with:
           context: ./aquarium-ui
@@ -61,7 +63,24 @@ jobs:
         id: date
         run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
 
+      - name: Check simulation service changes
+        id: check-simulation
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            simulation:
+              - 'simulation-service/**'
+
+      - name: Check UI changes
+        id: check-ui
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            ui:
+              - 'aquarium-ui/**'
+
       - name: Build and push simulation service
+        if: steps.check-simulation.outputs.simulation == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./simulation-service
@@ -71,6 +90,7 @@ jobs:
             ghcr.io/jtoniolo/aquarium-time-simulation:latest
 
       - name: Build and push UI
+        if: steps.check-ui.outputs.ui == 'true'
         uses: docker/build-push-action@v5
         with:
           context: ./aquarium-ui
