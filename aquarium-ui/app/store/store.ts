@@ -4,6 +4,7 @@ import aquariumsReducer, {
 } from "@/app/store/aquariumsSlice";
 import lightsReducer, { type LightsState } from "@/app/store/lightsSlice";
 import sunReducer, { type SunState } from "@/app/store/sunSlice";
+import configReducer from "./configSlice";
 
 interface AppState {
   aquariums: AquariumsState;
@@ -16,8 +17,9 @@ export const store = configureStore({
     aquariums: aquariumsReducer,
     lights: lightsReducer,
     sun: sunReducer,
+    config: configReducer,
   },
 });
 
-export type RootState = AppState;
+export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
